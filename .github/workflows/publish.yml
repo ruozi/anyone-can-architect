@@ -13,9 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Trusted publishing (OIDC) needs npm 11.5.1+, which ships with Node 24
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
       - name: Tag matches VERSION
         run: test "${GITHUB_REF_NAME#v}" = "$(tr -d '[:space:]' < VERSION)"
@@ -23,5 +24,3 @@ jobs:
         run: bash tests/run-tests.sh
       - name: Publish
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
