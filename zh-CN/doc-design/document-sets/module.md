@@ -42,7 +42,7 @@ docs/design/module-order/
 ```
 
 模块内部的能力同时满足以下条件时，拆分为子模块
-不满足时，作为父级 class-design 的内部机制章节
+不满足时，留在父级 class-design，按其[公共机制条件](../documents/class-design.md#2-文档结构)决定是否单独成章
 
 - 有独立的对外契约，调用方只读子级 interface 就能正确使用
 - 持有自己的状态或算法
@@ -53,7 +53,7 @@ docs/design/module-order/
 **反例**
 
 - ❌ 子模块目录平铺在 `docs/design/` 下，与父模块同级 → 所属关系丢失，子模块目录放在直接父级模块目录内
-- ❌ 没有独立契约的内部类拆分为子模块 → 不满足拆分条件，作为父级 class-design 的内部机制章节
+- ❌ 没有独立契约的内部类拆分为子模块 → 不满足拆分条件，留在父级 class-design
 - ❌ 父级 class-design 复述子级 interface 的签名或子级的内部实现 → 父级只引用子级 interface
 
 ### 2.3 父子职责

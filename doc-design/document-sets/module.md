@@ -42,7 +42,7 @@ docs/design/module-order/
 ```
 
 Split a capability within a module into a submodule when it meets all the following criteria
-Otherwise, describe it in an internal mechanisms chapter of the parent's class-design
+Otherwise, keep it in the parent's class-design, which decides by its [shared mechanism criteria](../documents/class-design.md#2-structure) whether it gets its own chapter
 
 - Has an independent external contract that callers can use correctly by reading only the child's interface
 - Owns its state or algorithms
@@ -53,7 +53,7 @@ Do not split data structures or helper classes into separate submodules
 **Counterexamples**
 
 - ❌ Place submodule directories directly under `docs/design/`, at the same level as their parent module → The parent–child relationship is lost, so place submodule directories inside their direct parent module's directory
-- ❌ Split an internal class without an independent contract into a submodule → It does not meet the split criteria, so describe it in an internal mechanisms chapter of the parent's class-design
+- ❌ Split an internal class without an independent contract into a submodule → It does not meet the split criteria, so keep it in the parent's class-design
 - ❌ Repeat signatures from the child's interface or the child's internal implementation in the parent's class-design → The parent only references the child's interface
 
 ### 2.3 Parent and Child Responsibilities
