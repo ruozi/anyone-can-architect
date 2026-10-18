@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Portable shell lint
+        run: bash scripts/check-portable.sh
+      - name: Skills are built from templates
+        run: |
+          bash scripts/build-skills.sh --lang en
+          bash scripts/build-skills.sh --lang zh
+          git diff --exit-code
+      - name: Tests
+        run: bash tests/run-tests.sh

@@ -1,0 +1,34 @@
+# Context
+
+## Language
+
+### example-term-1
+
+Chinese: {Fixed translation, fill in as needed}
+{Explain what the concept is in one sentence}
+{Scope and boundaries that are easy to confuse, fill in as needed}
+Aliases: {Abbreviations for the same concept or other names accepted in this business, fill in as needed}
+_Avoid_: {Names to avoid in this business and the reasons, fill in as needed}
+_For users_: {Natural wording for users, fill in as needed}
+
+### example-term-2
+
+{Explain what the concept is in one sentence}
+
+## Relationships
+
+{Fill in when concept relationships need to be explained together}
+- [example-term-1](#example-term-1) {and} [example-term-2](#example-term-2) {have a membership, composition, or association relationship}
+
+## Example dialogue
+
+{Fill in when terms are easy to misuse in business discussions}
+
+> **Developer:** {A business statement using [example-term-1](#example-term-1) and [example-term-2](#example-term-2)}
+> **Business stakeholder:** {Distinguish concepts that are easy to confuse}
+
+## Flagged ambiguities
+
+{Fill in when an expression can refer to different concepts}
+
+- "{An ambiguous expression}" refers to [example-term-1](#example-term-1) in this business, {how it differs from [example-term-2](#example-term-2)}

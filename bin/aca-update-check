@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# aca-update-check — explicit version check (called only by /aca-update; no longer runs on each skill start)
+#
+# Output (one explicit status line):
+#   UPDATE_AVAILABLE <installed> <latest>  — an installed skill version ≠ the latest npm release (requires reinstall)
+#   UP_TO_DATE <version>                   — every installed host matches the latest npm release
+#   CHECK_FAILED <reason>                  — check could not complete; nonzero exit code
+#
+# Env overrides (testing):
+#   ACA_NPM      — npm command used to read the latest version (default: npm)
+#   ACA_PACKAGE  — npm package name (default: anyone-can-architect)
+#
+# Always run a fresh check (no cache / snooze / disable — /aca-update is an explicit command and must actually check when run)
+# Checks do not upload feedback
+
+set -euo pipefail
+
+fail_check() { echo "CHECK_FAILED $1"; exit 1; }
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+NPM="${ACA_NPM:-npm}"
+PACKAGE="${ACA_PACKAGE:-anyone-can-architect}"
+
+# ─── Latest release from the npm registry ─────────────────
+command -v "$NPM" >/dev/null 2>&1 || fail_check NPM_UNAVAILABLE
+latest=$("$NPM" view "$PACKAGE" version 2>/dev/null || true)
+latest=$(printf '%s' "$latest" | tr -d '[:space:]')
+[ -n "$latest" ] || fail_check REGISTRY_UNAVAILABLE
+
+# ─── Compare every installed host; any ≠ latest → update required ────
+# bug #20: check all installed hosts, not just the calling one; a host with missing/empty VERSION is stale (needs repair)
+need=0; stale_ver=""; hosts=0
+flag_stale() { need=1; stale_ver="${1:-unknown}"; }
+
+# Read VERSION: unreadable file → empty string (caller treats missing as stale)
+read_ver() { [ -r "$1" ] && tr -d '[:space:]' < "$1" 2>/dev/null || true; }
+
+for h in claude codex cursor grok antigravity antigravity-cli; do
+  skills_root=$(bash "$SCRIPT_DIR/aca-host-skill-root" "$h") || fail_check HOST_PATH_UNAVAILABLE
+  [ -d "$skills_root/aca" ] || continue   # Not installed on this host; skip
+  hosts=$((hosts + 1))
+  hv=$(read_ver "$skills_root/aca/VERSION")
+  if [ -z "$hv" ]; then flag_stale unknown
+  elif [ "$hv" != "$latest" ]; then flag_stale "$hv"; fi
+
+  # setup writes .aca-version for each managed skill and lists them in aca/MANIFEST
+  # A skill listed in the manifest with a missing or different marker means an interrupted or partial install
+  if [ -r "$skills_root/aca/MANIFEST" ]; then
+    while IFS= read -r skill; do
+      [ -n "$skill" ] || continue
+      mv=$(read_ver "$skills_root/$skill/.aca-version")
+      if [ -z "$mv" ]; then flag_stale unknown
+      elif [ "$mv" != "$latest" ]; then flag_stale "$mv"; fi
+    done < "$skills_root/aca/MANIFEST"
+  else
+    flag_stale "${hv:-unknown}"   # Install without a manifest is incomplete → reinstall
+  fi
+done
+
+[ "$hosts" -gt 0 ] || fail_check NOT_INSTALLED
+
+if [ "$need" -eq 0 ]; then
+  echo "UP_TO_DATE $latest"
+  exit 0
+fi
+echo "UPDATE_AVAILABLE ${stale_ver:-unknown} $latest"

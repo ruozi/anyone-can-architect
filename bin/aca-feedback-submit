@@ -1,0 +1,386 @@
+#!/usr/bin/env bash
+# aca-feedback-submit — Drain feedback from the user-level outbox ~/.aca/outbox/ to the Anyone Can Architect repo
+#
+# The outbox is outside the project (user-level), so rm truly deletes files without the risk of
+# git-tracked files returning on checkout (the cause of #178/#211 spam in the old in-project queue)
+# Each file's frontmatter contains repo/branch/commit, so this command works from any project directory
+#
+# Upload mechanism:
+#   1. Only route: GitHub Issues API (create issues; requires a token with Issues write permission)
+#      First run an **idempotent duplicate check** (added in v3.27, made fail-closed in v4.5): a same-title issue
+#      in the target repo (recent open+closed window) → treat as synced, do not recreate **If the check cannot run
+#      (missing parser / index fetch failure) → keep in the outbox without creating** — skip this run to avoid duplicates
+#      (Previously, failed checks allowed creation; lost responses and outbox retries caused 8 same-title issues, #353–#361)
+#   2. Failure → **keep in the outbox + report**, retry next time
+#
+# State machine: minimal
+#   - pending: file exists in ~/.aca/outbox/{corrections,field-reports,upstream-issues}/
+#   - Upload succeeds / duplicate found → rm the file directly
+#
+# Delivery targets:
+#   - corrections / field-reports → Anyone Can Architect repo (ruozi/anyone-can-architect; ACA_FEEDBACK_REPO overrides)
+#   - upstream-issues → GitHub repo specified by file frontmatter `target_repo: owner/repo`
+#     (Report template / shared / spec repo issues found in consuming repos; skip and warn if target_repo is missing)
+#
+# Usage: bash ~/.claude/skills/aca/bin/aca-feedback-submit [specific outbox files...]
+#   No arguments: drain the entire outbox; file arguments: submit only selected files (for per-item release reconciliation; keep others intact)
+#   Run only after explicit user confirmation — /aca-feedback submission, upstream reporting at release reconciliation, or direct manual execution
+#   No git hook / no automatic background trigger
+
+set -euo pipefail
+
+PROJECT_DIR="$(pwd)"          # Used only to find the project-level .env for Tier 2 credentials
+FEEDBACK_DIR="$HOME/.aca/outbox"
+
+# ─── Anyone Can Architect issue repo ──────────────────────
+# Feedback about Anyone Can Architect itself goes to its GitHub repo; ACA_FEEDBACK_REPO overrides it (forks, offline tests)
+ACA_REPO="${ACA_FEEDBACK_REPO:-ruozi/anyone-can-architect}"
+
+# ─── Nothing to upload? silent exit ───────────────────────
+if [ ! -d "$FEEDBACK_DIR" ]; then
+  exit 0
+fi
+
+# ─── Simple .env parsing (extract one variable value only) ──────────────────
+# Supports: KEY=value / KEY="value" / KEY='value' / comment lines #
+# Does not support: variable interpolation / multiline values (not needed by Anyone Can Architect)
+read_env_var() {
+  local file="$1"
+  local key="$2"
+  grep -E "^[[:space:]]*${key}=" "$file" 2>/dev/null \
+    | head -1 \
+    | sed -E "s/^[[:space:]]*${key}=//" \
+    | sed -E 's/^["\x27]//;s/["\x27]$//' \
+    | sed -E 's/[[:space:]]*$//'
+}
+
+# ─── Helper: detect placeholders (treat aca setup's <your-github-token-here> as unset) ──
+# Fix #150: all three tiers previously checked only for nonempty values, so the project .env placeholder masked the real user-level token
+is_placeholder() {
+  local v="$1"
+  [ -z "$v" ] && return 0
+  case "$v" in
+    \<*\>) return 0 ;;   # Any <...> form (including <your-github-token-here>)
+  esac
+  return 1
+}
+
+# ─── Load GitHub credentials from five tiers (in priority order) ────────────────────
+# Tier 1: $GITHUB_TOKEN / $GH_TOKEN env var (highest priority, CI-friendly)
+# Tier 2: <cwd>/.env project-level GITHUB_TOKEN
+# Tier 3: ~/.aca/.env user-level GITHUB_TOKEN
+# Tier 4: gh auth token (when logged in to GitHub CLI)
+# Tier 5: git credential helper (Anyone Can Architect origin host)
+# Check each value with is_placeholder: placeholder / empty → treat as unset, fall through to the next tier
+# None found → return 1, keep locally for retry
+#
+# Output globals: GH_TOKEN_RESOLVED / GH_API_BASE_RESOLVED
+# ACA_GITHUB_API_BASE can override the API URL (GitHub Enterprise or offline tests)
+load_github_credentials() {
+  GH_TOKEN_RESOLVED=""
+  GH_API_BASE_RESOLVED="${ACA_GITHUB_API_BASE:-https://api.github.com}"
+  local t envf
+
+  # Tier 1: env var
+  for t in "${GITHUB_TOKEN:-}" "${GH_TOKEN:-}"; do
+    if ! is_placeholder "$t"; then
+      GH_TOKEN_RESOLVED="$t"
+      return 0
+    fi
+  done
+
+  # Tier 2 / 3: project-level .env, then user-level ~/.aca/.env (placeholders are unset and do not mask real tokens in later tiers)
+  for envf in "$PROJECT_DIR/.env" "$HOME/.aca/.env"; do
+    [ -f "$envf" ] || continue
+    t=$(read_env_var "$envf" GITHUB_TOKEN)
+    if ! is_placeholder "$t"; then
+      GH_TOKEN_RESOLVED="$t"
+      return 0
+    fi
+  done
+
+  # Tier 4: GitHub CLI
+  if command -v gh >/dev/null 2>&1; then
+    t=$(gh auth token 2>/dev/null || true)
+    if ! is_placeholder "$t"; then
+      GH_TOKEN_RESOLVED="$t"
+      return 0
+    fi
+  fi
+
+  # Tier 5: git credential helper fallback
+  # GIT_TERMINAL_PROMPT=0: disable interactive git credential prompts (prevent hangs in noninteractive calls)
+  local host pw
+  host="github.com"
+  if [ -n "$host" ]; then
+    pw=$(printf 'protocol=https\nhost=%s\n\n' "$host" \
+      | GIT_TERMINAL_PROMPT=0 git credential fill 2>/dev/null \
+      | sed -nE 's/^password=//p' | head -1)
+    if ! is_placeholder "$pw"; then
+      GH_TOKEN_RESOLVED="$pw"
+      return 0
+    fi
+  fi
+
+  return 1  # None found
+}
+
+# ─── Idempotent duplicate index (one page each for open+closed; fetch once per run, reuse across files) ──
+# Fetch open / closed separately Checking closed is required: after a duplicate issue is manually closed,
+# checking only open would recreate the same pending file's issue per_page=100 covers recent retries; no pagination
+DEDUP_INDEX_OPEN=""
+DEDUP_INDEX_CLOSED=""
+DEDUP_INDEX_STATE=""   # "": not fetched; ok / fail
+DEDUP_INDEX_ENDPOINT="" # Index endpoint (refresh per repo when upstream-issues targets multiple repos)
+trap '[ -n "$DEDUP_INDEX_OPEN" ] && rm -f "$DEDUP_INDEX_OPEN" "$DEDUP_INDEX_CLOSED" || true' EXIT
+
+fetch_dedup_index() {  # $1=token $2=endpoint(…/-/issues)
+  if [ "$DEDUP_INDEX_ENDPOINT" = "$2" ] && [ -n "$DEDUP_INDEX_STATE" ]; then
+    [ "$DEDUP_INDEX_STATE" = "ok" ]; return
+  fi
+  [ -n "$DEDUP_INDEX_OPEN" ] && rm -f "$DEDUP_INDEX_OPEN" "$DEDUP_INDEX_CLOSED"
+  DEDUP_INDEX_ENDPOINT="$2"; DEDUP_INDEX_STATE=""
+  DEDUP_INDEX_OPEN=$(mktemp); DEDUP_INDEX_CLOSED=$(mktemp)
+  if curl -s --max-time 30 -o "$DEDUP_INDEX_OPEN" \
+       -H "Authorization: Bearer $1" -H "Accept: application/vnd.github+json" \
+       "$2?state=open&per_page=100" \
+     && curl -s --max-time 30 -o "$DEDUP_INDEX_CLOSED" \
+       -H "Authorization: Bearer $1" -H "Accept: application/vnd.github+json" \
+       "$2?state=closed&per_page=100"; then
+    DEDUP_INDEX_STATE="ok"; return 0
+  fi
+  DEDUP_INDEX_STATE="fail"; return 1
+}
+
+# ─── Does this pending file already have a matching issue? (fail-closed, three states) ──
+# Match criteria: same repo + exact title (recent open+closed window); all observed spam duplicates had the same title
+# The old criteria (title+created_at, fetching each body to compare) required node; missing node or index fetch failure caused
+# return 1 — equivalent to "no duplicate", allowing creation; lost responses and outbox retries then caused same-title spam
+# Now use three states; an unavailable duplicate check no longer allows creation:
+#   rc 0 = match (print #number to stdout, remove local file as synced)
+#   rc 1 = confirmed no duplicate (safe to create)
+#   rc 2 = duplicate check unavailable (keep pending, do not create this run)
+# Title parser order matches payload encoder order: node > python3 (smoke test) > jq; if all are missing, payload generation
+# also fails and uploading is already unavailable, so rc 2 adds no new availability restriction
+issue_already_exists() {  # $1=title $2=token $3=api_base $4=repo_slug
+  fetch_dedup_index "$2" "$3/repos/$4/issues" || return 2
+  local rc=0
+  if command -v node >/dev/null 2>&1; then
+    ACA_TITLE="$1" ACA_IDX_OPEN="$DEDUP_INDEX_OPEN" ACA_IDX_CLOSED="$DEDUP_INDEX_CLOSED" node -e '
+      const fs=require("fs");
+      const load=p=>{try{const v=JSON.parse(fs.readFileSync(p,"utf8"));return Array.isArray(v)?v:[]}catch(e){process.exit(2)}};
+      const hit=load(process.env.ACA_IDX_OPEN).concat(load(process.env.ACA_IDX_CLOSED))
+        .find(i=>i&&i.title===process.env.ACA_TITLE);
+      if(hit){console.log("#"+hit.number);process.exit(0);}
+      process.exit(1);
+    ' 2>/dev/null || rc=$?
+    return $rc
+  fi
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'import json' >/dev/null 2>&1; then
+    ACA_TITLE="$1" ACA_IDX_OPEN="$DEDUP_INDEX_OPEN" ACA_IDX_CLOSED="$DEDUP_INDEX_CLOSED" python3 -c '
+import json,os,sys
+items=[]
+try:
+    for p in (os.environ["ACA_IDX_OPEN"],os.environ["ACA_IDX_CLOSED"]):
+        v=json.load(open(p,encoding="utf-8"))
+        if isinstance(v,list): items+=v
+except Exception: sys.exit(2)
+t=os.environ.get("ACA_TITLE","")
+for i in items:
+    if isinstance(i,dict) and i.get("title")==t:
+        print("#"+str(i.get("number",""))); sys.exit(0)
+sys.exit(1)
+' 2>/dev/null || rc=$?
+    return $rc
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    local out
+    out=$(jq -r --arg t "$1" '.[] | select(.title==$t) | .number' \
+      "$DEDUP_INDEX_OPEN" "$DEDUP_INDEX_CLOSED" 2>/dev/null) || return 2
+    if [ -n "$out" ]; then
+      echo "#$(echo "$out" | head -1)"
+      return 0
+    fi
+    return 1
+  fi
+  return 2
+}
+
+# ─── Submit via GitHub Issues REST API ───────────────────
+#   POST {api_base}/repos/{owner}/{repo}/issues, request body { "title": "...", "body": "..." }
+# See load_github_credentials for five-tier credential loading
+# Extract repo_slug from the Anyone Can Architect origin URL; upstream-issues uses frontmatter target_repo
+submit_via_github_api() {
+  local file="$1"
+
+  if ! load_github_credentials; then
+    return 1  # No token in any tier, keep locally for retry
+  fi
+
+  local token="$GH_TOKEN_RESOLVED"
+  local api_base="$GH_API_BASE_RESOLVED"
+
+  # Target repo: upstream-issues files use frontmatter target_repo; others go to the Anyone Can Architect repo
+  local repo_slug=""
+  repo_slug=$(sed -nE 's/^target_repo:[[:space:]]*(.*)$/\1/p' "$file" | head -1 | sed -E 's/[[:space:]]*$//')
+
+  [ -n "$repo_slug" ] || repo_slug="$ACA_REPO"
+  if [ -z "$repo_slug" ]; then
+    return 1
+  fi
+
+  local endpoint="$api_base/repos/$repo_slug/issues"
+
+  # Extract title (first # heading after frontmatter)
+  local title
+  title=$(awk '/^---$/{c++; next} c==2 && /^# /{sub(/^# /, ""); print; exit}' "$file")
+  [ -z "$title" ] && title="Anyone Can Architect feedback: $(basename "$file")"
+
+  # Idempotent duplicate check (fail-closed, three states): match → treat as synced (caller removes local file; DEDUP_HIT is for counting);
+  # Check unavailable → keep pending without creating, preventing same-title spam from lost-response retries plus failed duplicate checks
+  local dedup_rc=0 dedup_hit_no=""
+  dedup_hit_no=$(issue_already_exists "$title" "$token" "$api_base" "$repo_slug") || dedup_rc=$?
+  case "$dedup_rc" in
+    0)
+      echo "[aca-feedback-submit] Matching issue ${dedup_hit_no} already exists, treating as synced: $(basename "$file")" >&2
+      DEDUP_HIT=1
+      return 0
+      ;;
+    1) : ;;  # Confirmed no duplicate, proceed with creation
+    *)
+      echo "[aca-feedback-submit] ⚠ Duplicate check unavailable (index fetch failed or no JSON parser), keeping in outbox for retry: $(basename "$file")" >&2
+      return 1
+      ;;
+  esac
+
+  local body
+  body=$(cat "$file")
+
+  # Build JSON payload (GitHub Create an issue = title + body) → write to a temp file,
+  # send with curl --data-binary @file (avoid shell escaping / length issues with inline --data)
+  # Encoder priority: node (most reliable across platforms, always present in Claude Code) > python3 (with smoke test) > jq
+  # ⚠ Windows: `python3` may resolve to a Microsoft Store alias — `command -v` finds it, but execution reports
+  #   "Python was not found..." and exits nonzero without JSON Use node first; python3 must pass the `import json` smoke test
+  local payload_file
+  payload_file=$(mktemp)
+  if command -v node >/dev/null 2>&1; then
+    ACA_TITLE="$title" ACA_BODY="$body" node -e \
+      'const fs=require("fs");fs.writeFileSync(process.argv[1],JSON.stringify({title:process.env.ACA_TITLE,body:process.env.ACA_BODY}))' \
+      "$payload_file" 2>/dev/null || true
+  elif command -v python3 >/dev/null 2>&1 && python3 -c 'import json' >/dev/null 2>&1; then
+    python3 -c 'import json,sys; open(sys.argv[1],"w",encoding="utf-8").write(json.dumps({"title":sys.argv[2],"body":sys.argv[3]}))' \
+      "$payload_file" "$title" "$body" 2>/dev/null || true
+  elif command -v jq >/dev/null 2>&1; then
+    jq -nc --arg t "$title" --arg b "$body" '{title: $t, body: $b}' > "$payload_file" 2>/dev/null || true
+  else
+    echo "[aca-feedback-submit] WARN: No JSON encoder available (node / python3 / jq all missing) → skipping primary issue route" >&2
+    rm -f "$payload_file"
+    return 1
+  fi
+
+  # Encoder produces an empty file → treat as failure (avoid sending an invalid body and triggering HTTP 400)
+  if [ ! -s "$payload_file" ]; then
+    echo "[aca-feedback-submit] WARN: JSON payload generation failed (empty) → skipping primary issue route" >&2
+    rm -f "$payload_file"
+    return 1
+  fi
+
+  # Call GitHub API
+  local response_file
+  response_file=$(mktemp)
+  local http_code
+  http_code=$(curl -s --max-time 30 -o "$response_file" -w "%{http_code}" \
+    -X POST "$endpoint" \
+    -H "Authorization: Bearer $token" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    -H "Content-Type: application/json" \
+    --data-binary @"$payload_file")
+  rm -f "$payload_file"
+
+  case "$http_code" in
+    2*)
+      rm -f "$response_file"
+      return 0
+      ;;
+    *)
+      echo "[aca-feedback-submit] GitHub API failed: HTTP $http_code" >&2
+      echo "  endpoint: $endpoint" >&2
+      echo "  response: $(head -c 200 "$response_file")" >&2
+      rm -f "$response_file"
+      return 1
+      ;;
+  esac
+}
+
+# ─── Collect pending files ───────────────────────────────────────
+# No arguments: drain the entire outbox With file arguments: process only selected files (for per-item release reconciliation),
+# leaving unselected files intact — the user chooses; the script does not scan on their behalf
+PICKED=()
+if [ "$#" -gt 0 ]; then
+  for f in "$@"; do
+    if [ ! -f "$f" ]; then
+      echo "[aca-feedback-submit] ⚠ Specified file does not exist, skipping: $f" >&2
+      continue
+    fi
+    case "$f" in
+      "$FEEDBACK_DIR"/*) PICKED+=("$f") ;;
+      *) echo "[aca-feedback-submit] ⚠ Outside outbox $FEEDBACK_DIR, skipping: $f" >&2 ;;
+    esac
+  done
+else
+  for type in corrections field-reports upstream-issues; do
+    type_dir="$FEEDBACK_DIR/$type"
+    [ -d "$type_dir" ] || continue
+    for file in "$type_dir"/*.md; do
+      [ -f "$file" ] && PICKED+=("$file")
+    done
+  done
+fi
+
+# ─── Main loop ────────────────────────────────────────────
+# Only route = create a GitHub issue; on failure, keep in outbox for retry
+
+found=0
+uploaded_issue=0
+deduped=0
+pending=0
+
+for file in ${PICKED[@]+"${PICKED[@]}"}; do
+    type=$(basename "$(dirname "$file")")
+    found=$((found + 1))
+
+    # upstream-issues requires target_repo (sets the target repo); if missing, keep pending and warn
+    if [ "$type" = "upstream-issues" ] && \
+       ! sed -nE 's/^target_repo:[[:space:]]*(.*)$/\1/p' "$file" | head -1 | grep -q .; then
+      echo "[aca-feedback-submit] ⚠ Upstream issue missing target_repo, skipping: $(basename "$file")" >&2
+      pending=$((pending + 1))
+      continue
+    fi
+
+    # Primary route: GitHub Issues API (includes idempotent duplicate check; a match sets DEDUP_HIT=1)
+    DEDUP_HIT=0
+    if submit_via_github_api "$file"; then
+      rm -f "$file"
+      if [ "$DEDUP_HIT" -eq 1 ]; then
+        deduped=$((deduped + 1))
+      else
+        uploaded_issue=$((uploaded_issue + 1))
+      fi
+      continue
+    fi
+
+    # Upload failed — keep locally for retry (only route, no fallback)
+    pending=$((pending + 1))
+done
+
+if [ "$found" -eq 0 ]; then
+  exit 0  # silent: nothing to do
+fi
+
+echo "[aca-feedback-submit] found=$found issue=$uploaded_issue dedup=$deduped pending=$pending"
+
+if [ "$pending" -gt 0 ]; then
+  echo "[aca-feedback-submit] ⚠ $pending feedback uploads (GitHub issues) failed, kept locally in $FEEDBACK_DIR for retry:" >&2
+  echo "  Set GITHUB_TOKEN (requires Issues write permission) or run gh auth login, fix the network, then rerun this command to retry" >&2
+fi

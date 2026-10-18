@@ -1,0 +1,45 @@
+{
+  "name": "anyone-can-architect",
+  "version": "0.1.0",
+  "description": "The design language for AI-built software: skills that make your AI assistant design first, then build from the design",
+  "keywords": [
+    "ai",
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "cursor",
+    "software-design",
+    "documentation",
+    "literate-programming"
+  ],
+  "homepage": "https://github.com/ruozi/anyone-can-architect#readme",
+  "bugs": "https://github.com/ruozi/anyone-can-architect/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ruozi/anyone-can-architect.git"
+  },
+  "license": "MIT",
+  "author": "Ruozi",
+  "bin": {
+    "anyone-can-architect": "cli/index.js"
+  },
+  "files": [
+    "cli/",
+    "bin/",
+    "scripts/",
+    "axioms/",
+    "doc-design/",
+    "meta-skills/",
+    "skills/",
+    "partials/",
+    "templates/",
+    "dist/",
+    "zh-CN/",
+    "CONTEXT.md",
+    "SSOT.md",
+    "VERSION"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

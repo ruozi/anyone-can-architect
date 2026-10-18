@@ -1,0 +1,24 @@
+# Row Icon Assets
+
+The four PNGs are 64 × 64px with transparent backgrounds and keep the original proportions; sources are listed below
+
+| File | Source |
+| --- | --- |
+| `apple.png` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Apple_logo_black.svg) |
+| `android.png` | [Android brand guidelines](https://developer.android.com/distribute/marketing-tools/brand-guidelines) |
+| `app-store.png` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:App_Store_(iOS).svg) |
+| `google-play.png` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Google_Play_2022_icon.svg) |
+
+The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the Creative Commons 3.0 Attribution License.
+
+Person mockups use public sample portraits from Random User Generator; the names in the docs are fictional
+avatar-zhang.jpg: https://randomuser.me/api/portraits/men/32.jpg
+avatar-li.jpg: https://randomuser.me/api/portraits/women/44.jpg
+avatar-wang.jpg: https://randomuser.me/api/portraits/men/46.jpg
+
+Attachment mockup images are from Unsplash
+attachment-room.jpg: https://images.unsplash.com/photo-1495521821757-a1efb6729352
+attachment-desk.jpg: https://images.unsplash.com/photo-1449247709967-d4461a6a6103
+attachment-shelf.jpg: https://images.unsplash.com/photo-1519710164239-da123dc03ef4
+attachment-bedroom.jpg: https://images.unsplash.com/photo-1505693416388-ac5ce068fe85
+attachment-kitchen.jpg: https://images.unsplash.com/photo-1484154218962-a197022b5858

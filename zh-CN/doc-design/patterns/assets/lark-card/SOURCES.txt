@@ -1,0 +1,24 @@
+# 行首图标素材
+
+四张 PNG 为 64 × 64px 透明底，图形保持原始比例，来源如下
+
+| 文件 | 来源 |
+| --- | --- |
+| `apple.png` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Apple_logo_black.svg) |
+| `android.png` | [Android 品牌指南](https://developer.android.com/distribute/marketing-tools/brand-guidelines) |
+| `app-store.png` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:App_Store_(iOS).svg) |
+| `google-play.png` | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Google_Play_2022_icon.svg) |
+
+The Android robot is reproduced or modified from work created and shared by Google and used according to terms described in the Creative Commons 3.0 Attribution License.
+
+人员示意使用 Random User Generator 的公开示例头像，文档姓名为虚构示例
+avatar-zhang.jpg：https://randomuser.me/api/portraits/men/32.jpg
+avatar-li.jpg：https://randomuser.me/api/portraits/women/44.jpg
+avatar-wang.jpg：https://randomuser.me/api/portraits/men/46.jpg
+
+附件示意图片来自 Unsplash
+attachment-room.jpg：https://images.unsplash.com/photo-1495521821757-a1efb6729352
+attachment-desk.jpg：https://images.unsplash.com/photo-1449247709967-d4461a6a6103
+attachment-shelf.jpg：https://images.unsplash.com/photo-1519710164239-da123dc03ef4
+attachment-bedroom.jpg：https://images.unsplash.com/photo-1505693416388-ac5ce068fe85
+attachment-kitchen.jpg：https://images.unsplash.com/photo-1484154218962-a197022b5858

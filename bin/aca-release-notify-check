@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# aca-release-notify-check — Release announcement integration check (#462), run before /aca-release
+#
+# The summary is fact (must enter the tag, see aca-tag-notify-check); announcements are transport (per repo CI/CD). This script answers one question:
+# "If the repo has a tag-triggered announcement workflow, does it read content from the tag annotation's NOTIFY block?" Platform-independent: detect tag triggers in platform config
+# files, then check whether pipelines and their referenced script directories consume the NOTIFY block / call aca-tag-notify-extract
+#
+# Results (mutually exclusive, exit codes):
+#   NOTIFY_NONE      0  No tag-triggered pipeline, or no announcement action (webhook / notify / feishu / lark /
+#                       slack / dingtalk / wecom / teams / mail…) — Continue Release, record "transport not configured" in output
+#   NOTIFY_WIRED     0  The tag pipeline has an announcement action, and the pipeline or its script directories consume the NOTIFY block / aca-tag-notify-extract
+#   NOTIFY_UNWIRED   1  The tag pipeline has an announcement action, but nothing consumes the summary — The summary cannot be sent even if written; stop Release
+#
+# Recognized platform configs (tag trigger keywords):
+#   .cnb.yml / .cnb.yaml                  tag_push
+#   .github/workflows/*.yml|yaml          tags:
+#   .gitea/workflows/*.yml|yaml           tags:
+#   .gitlab-ci.yml                        CI_COMMIT_TAG
+#   bitbucket-pipelines.yml               tags:
+#   azure-pipelines.yml                   tags:
+#   Jenkinsfile                           tag
+# Script directories scanned: .ci/ .github/ .gitea/ scripts/ ci/ (if present)
+#
+# Output: NOTIFY_CHECK <directory> / result line (with files) / RESULT OK|FAIL
+# Usage:  bash aca-release-notify-check [repo directory, default .]
+
+set -euo pipefail
+
+ROOT="${1:-.}"
+[ -d "$ROOT" ] || { echo "NO_DIR $ROOT"; exit 2; }
+echo "NOTIFY_CHECK $ROOT"
+
+NOTIFY_RE='webhook|notify|feishu|lark|slack|dingtalk|wecom|teams|mail'
+CONSUME_RE='NOTIFY-BEGIN|aca-tag-notify-extract'
+
+tag_files=""
+addf() { [ -f "$1" ] && grep -qE "$2" "$1" && tag_files="$tag_files$1"$'\n'; return 0; }
+addf "$ROOT/.cnb.yml" 'tag_push'
+addf "$ROOT/.cnb.yaml" 'tag_push'
+addf "$ROOT/.gitlab-ci.yml" 'CI_COMMIT_TAG'
+addf "$ROOT/bitbucket-pipelines.yml" '^[[:space:]]*tags:'
+addf "$ROOT/azure-pipelines.yml" '^[[:space:]]*tags:'
+addf "$ROOT/Jenkinsfile" '\btag\b'
+for d in "$ROOT/.github/workflows" "$ROOT/.gitea/workflows"; do
+  [ -d "$d" ] || continue
+  while IFS= read -r f; do addf "$f" '^[[:space:]]*tags:'; done < <(find "$d" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
+done
+tag_files="$(printf '%s' "$tag_files" | sed '/^$/d')"
+
+if [ -z "$tag_files" ]; then
+  echo "NOTIFY_NONE No tag-triggered pipeline found; the summary still enters the repo with the tag and can be replayed once transport is connected"
+  echo "RESULT OK"
+  exit 0
+fi
+
+notify_files="$(printf '%s\n' "$tag_files" | while IFS= read -r f; do grep -qiE "$NOTIFY_RE" "$f" && echo "$f"; done || true)"
+if [ -z "$notify_files" ]; then
+  echo "NOTIFY_NONE Tag pipelines have no announcement actions: $(printf '%s' "$tag_files" | tr '\n' ' ')"
+  echo "RESULT OK"
+  exit 0
+fi
+
+consumed=""
+for f in $notify_files; do
+  grep -qE "$CONSUME_RE" "$f" && consumed="$f" && break
+done
+if [ -z "$consumed" ]; then
+  for d in "$ROOT/.ci" "$ROOT/.github" "$ROOT/.gitea" "$ROOT/scripts" "$ROOT/ci"; do
+    [ -d "$d" ] || continue
+    hit="$(grep -rlE "$CONSUME_RE" "$d" 2>/dev/null | head -1 || true)"
+    [ -n "$hit" ] && consumed="$hit" && break
+  done
+fi
+
+if [ -n "$consumed" ]; then
+  echo "NOTIFY_WIRED Announcement workflow reads content from the tag summary: $(printf '%s' "$notify_files" | tr '\n' ' ')(consumed at $consumed)"
+  echo "RESULT OK"
+  exit 0
+fi
+echo "NOTIFY_UNWIRED Announcement pipelines exist but do not consume the tag summary (NOTIFY block / aca-tag-notify-extract): $(printf '%s' "$notify_files" | tr '\n' ' ')"
+echo "RESULT FAIL"
+exit 1

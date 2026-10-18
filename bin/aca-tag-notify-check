@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# aca-tag-notify-check — Release summary (annotated tag annotation) format check (#459)
+#
+# Background: version notifications use the annotated tag's NOTIFY block (e.g. .ci/notify.sh); a missing block only sends
+# a fallback card saying "No release summary provided for this version", which process discipline cannot prevent (confirmed in v4.22.0 / v4.22.1)
+# This script is the mechanical gate for /aca-release before `git tag -a -F <file>`: the summary is a required Release artifact,
+# regardless of whether the repository has notification transport configured
+#
+# Unified format (same for all repo-types):
+#   vX.Y.Z：<one-line topic>（#issue …）          ← First line, version = target version
+#   <blank line>
+#   ---NOTIFY-BEGIN---
+#   <emoji> <one user-facing change>            ← One item per line, starting with an emoji; 3–6 items recommended
+#   …
+#   ✅ <verification facts: tests N/N, build, audit> ← Last item must be ✅ verification facts
+#   ---NOTIFY-END---
+#
+# Criteria:
+#   TAG_NOTE_VERSION      First line is not `v<target version>：…` (full-width or ASCII colon accepted)
+#   TAG_NOTE_NO_BLOCK     Missing ---NOTIFY-BEGIN--- / ---NOTIFY-END---, wrong order, or multiple occurrences
+#   TAG_NOTE_EMPTY        No content lines in the block
+#   TAG_NOTE_LINE_FORMAT  Content line starts with `-` / `*` / ASCII letters or digits / whitespace (must start with an emoji, one item per line)
+#   TAG_NOTE_NO_VERIFY    Last item in the block does not start with ✅ (missing verification facts)
+#
+# Output: TAG_NOTE_CHECK <file> <version> / criterion lines / RESULT OK|FAIL
+# Exit:   0=OK  1=FAIL  2=file not found or missing arguments
+# Usage:  bash aca-tag-notify-check <summary file> <target version (with or without v)>
+
+set -euo pipefail
+
+FILE="${1:-}"
+VERSION="${2:-}"
+if [ -z "$FILE" ] || [ -z "$VERSION" ]; then
+  echo "USAGE aca-tag-notify-check <summary file> <target version>"
+  exit 2
+fi
+if [ ! -f "$FILE" ]; then
+  echo "NO_NOTE $FILE"
+  exit 2
+fi
+VERSION="${VERSION#v}"
+
+echo "TAG_NOTE_CHECK $FILE $VERSION"
+fail=0
+
+first="$(sed -n '1p' "$FILE" | tr -d '\r')"
+case "$first" in
+  "v${VERSION}："*|"v${VERSION}:"*) ;;
+  *) echo "TAG_NOTE_VERSION First line must be \"v${VERSION}：<topic>（#issue）\", actual: $(printf '%s' "$first" | head -c 60)"; fail=1 ;;
+esac
+
+begin_n="$(grep -c '^---NOTIFY-BEGIN---[[:space:]]*$' "$FILE" || true)"
+end_n="$(grep -c '^---NOTIFY-END---[[:space:]]*$' "$FILE" || true)"
+begin_ln="$(grep -n '^---NOTIFY-BEGIN---[[:space:]]*$' "$FILE" | head -1 | cut -d: -f1 || true)"
+end_ln="$(grep -n '^---NOTIFY-END---[[:space:]]*$' "$FILE" | head -1 | cut -d: -f1 || true)"
+if [ "$begin_n" != "1" ] || [ "$end_n" != "1" ] || [ -z "$begin_ln" ] || [ -z "$end_ln" ] || [ "$begin_ln" -ge "$end_ln" ]; then
+  echo "TAG_NOTE_NO_BLOCK Exactly one pair of ---NOTIFY-BEGIN--- … ---NOTIFY-END--- required (BEGIN first)"
+  fail=1
+else
+  block="$(sed -n "$((begin_ln + 1)),$((end_ln - 1))p" "$FILE" | tr -d '\r' | sed -E '/^[[:space:]]*$/d')"
+  if [ -z "$block" ]; then
+    echo "TAG_NOTE_EMPTY No content lines in the NOTIFY block"
+    fail=1
+  else
+    n=0
+    while IFS= read -r l; do
+      n=$((n + 1))
+      case "$l" in
+        [-*]*|[[:alnum:]]*|[[:space:]]*)
+          echo "TAG_NOTE_LINE_FORMAT Item $n must start with an emoji, one item per line: $(printf '%s' "$l" | head -c 40)"; fail=1 ;;
+      esac
+    done <<EOF_BLOCK
+$block
+EOF_BLOCK
+    last="$(printf '%s\n' "$block" | tail -1)"
+    case "$last" in
+      "✅"*) ;;
+      *) echo "TAG_NOTE_NO_VERIFY Last item must be ✅ verification facts (test / build / audit results), actual: $(printf '%s' "$last" | head -c 40)"; fail=1 ;;
+    esac
+  fi
+fi
+
+if [ "$fail" -eq 0 ]; then
+  echo "RESULT OK"
+  exit 0
+fi
+echo "RESULT FAIL"
+exit 1

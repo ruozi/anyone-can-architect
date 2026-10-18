@@ -1,0 +1,317 @@
+#!/usr/bin/env bash
+# aca-doc-graph-check — docs/ tree structure check
+#
+# Key prerequisite: all doc references must use Markdown links (repo-relative paths / external URLs), never bare prose
+# Thus the Markdown link graph is the complete navigation graph, with no prose ambiguity — all checks below are deterministic (supported by the "concept completeness" writing axiom)
+# Responsibilities (aligned with "machines handle deterministic checks; AI handles judgment"):
+#   ◇ Hard gates (this script decides, RESULT FAIL / exit 1):
+#       BROKEN_LINK   —— Markdown link ](x.md) points to a file that does not exist on disk
+#       MISSING_ENTRY —— docs/ has no README.md entry
+#       ORPHAN        —— No Markdown link points to it (a true orphan: no references, or references use prohibited prose)
+#       UNREACHABLE   —— Cannot be reached from README through Markdown links
+#       FACADE_HEADING —— docs/README contains front page sections (✨ What Is This / 🚀 How to Use); it must only be an index, with the front page in the root README
+#       REGISTRY_GHOST / REGISTRY_MISSING / REGISTRY_BAD_ROOT / REGISTRY_UNCLOSED
+#                     —— Validate explicitly declared registry blocks (v3.28,#187 gap#1), per the convention (axioms/writing.md "Writing Details"):
+#                        <!-- aca-registry: <relative dir path> --> …entries use Markdown links… <!-- /aca-registry -->
+#                        ①Entry points to a nonexistent path = GHOST (ghost entry) ②An immediate subdirectory of the root has no covering entry =
+#                        MISSING (missing registration; hidden directories .* are conventionally tools / meta-configuration and need no registration) ③Root does not exist = BAD_ROOT
+#                        ④Opening marker has no closing marker = UNCLOSED (fail-closed); unmarked lists are not checked (no guessing, no false positives)
+#   ◇ Judgment (outside this script; handled by the aca-review subagent): one main thread — a single thread / clear sequence / no branching detours
+#
+# Key conventions (avoid false positives / fail-open):
+#   - Only Markdown links ](dest) and HTML links <a href="dest"> form the graph; bare .md mentions in prose are not edges (prevent fail-open)
+#   - Broken links are determined by existence on disk: links outside the docs tree that exist (such as ../README.md) are not broken
+#   - Unicode-safe (Chinese filenames); decode %20; follow symlinks (find -L)
+#   - Normalize directory links [x](design/) to <dir>/README.md (only if it exists; avoid false positives for asset directories)
+#   - find enumeration failure / unreadable file → immediate FAIL, never silently pass
+#   - Link target contains ( / \ / < (angle bracket) → UNSUPPORTED_LINK + FAIL (fail-closed, prevent missed errors from embedded ) in targets)
+#   - Only inline links [text](target) are supported; reference-style ([x][m] + [m]: y.md) → UNSUPPORTED_LINK + FAIL
+#   - Convention: filenames use simple characters (Chinese / ASCII / - / _ / /), without ( ) \ < > spaces; references use inline links
+#
+# Output (stdout, parseable line by line):
+#   DOC_GRAPH_CHECK <docs_dir>   ENTRY <path|NO_ENTRY>   FILES <N>   REACHABLE <N>
+#   UNSUPPORTED_LINK <src> (...)         (hard error: links with literal parentheses, fail-closed)
+#   READ_ERROR <src>                     (hard error: file read / grep error)
+#   BROKEN_LINK <src> -> <target>        (hard error)
+#   MISSING_ENTRY README.md              (hard error)
+#   ORPHAN <relative path>                   (hard error)
+#   UNREACHABLE <relative path>              (hard error)
+#   RESULT OK | FAIL
+#
+# Exit: 0 = OK (no hard errors, entry exists); 1 = FAIL (broken link / missing entry / orphan / unreachable / enumeration failure); 2 = no docs/; 3 = bash too old (< 4, no associative arrays)
+#       Caller: only exit 0 or 2 passes the mechanical checks; all other codes are blockers (no fail-open)
+#
+# Exclusions (v3.27,#187 gap#3):
+#   - Exclude tool / meta-configuration directories by default (by directory name, at any depth): .git / .claude / .aca / .agents
+#     —— These are not design docs (agent definitions / feedback queues / baselines); scanning them causes false ORPHAN / BROKEN_LINK reports,
+#     and the caller (aca-repo-audit HARD RULE) uses EXIT, so false positives become blockers; build directories (node_modules, etc.)
+#     are intentionally not excluded by default — customize with --exclude
+#   - --exclude <glob> (repeatable): exclude by path glob relative to DOCS_DIR (matching the path itself or its subtree)
+#
+# Usage: bash aca-doc-graph-check [docs subtree, default docs] [--exclude <glob>]...
+# Dependencies: bash 4+ (associative arrays; Mac's default /bin/bash is 3.2, too old → explicit check + exit 3 at script start, no silent failure), GNU find/sort (-print0/-z, available in the repo's git-bash/CI)
+
+set -euo pipefail
+
+# Early bash version check: this script requires bash 4+ associative arrays (declare -A); Mac's default /bin/bash is 3.2 (Apple does not upgrade due to GPL3),
+# which fails at declare -A with an exit code easily confused with NO_DOCS (2) → caller fails open; reject explicitly here with distinct exit code 3
+if [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
+  echo "BASH_TOO_OLD Requires bash 4+ (associative arrays); current = ${BASH_VERSION:-unknown}; Mac's default bash 3.2 is too old — use a newer version (brew install bash; or /opt/homebrew/bin/bash, git-bash)" >&2
+  echo "RESULT FAIL"
+  exit 3
+fi
+
+# ─── Argument parsing: [docs subtree] + --exclude <glob> (repeatable) ────
+DOCS_ARG=""
+declare -a EXCLUDES=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --exclude)
+      [ $# -ge 2 ] || { echo "USAGE: aca-doc-graph-check [docs subtree] [--exclude <glob>]..." >&2; exit 1; }
+      EXCLUDES+=("$2"); shift 2 ;;
+    *)
+      if [ -z "$DOCS_ARG" ]; then DOCS_ARG="$1"; shift
+      else echo "USAGE: aca-doc-graph-check [docs subtree] [--exclude <glob>]..." >&2; exit 1; fi ;;
+  esac
+done
+DOCS_ARG="${DOCS_ARG:-docs}"
+if [ -d "$DOCS_ARG" ]; then
+  DOCS_DIR="$(cd "$DOCS_ARG" && pwd -P)"
+elif [ -d "$(pwd)/$DOCS_ARG" ]; then
+  DOCS_DIR="$(cd "$(pwd)/$DOCS_ARG" && pwd -P)"
+else
+  echo "NO_DOCS $DOCS_ARG"; exit 2
+fi
+
+ENTRY="$DOCS_DIR/README.md"
+echo "DOC_GRAPH_CHECK $DOCS_DIR"
+
+normpath() {  # Pure bash normalization (resolve . and ..); input must be an absolute path
+  local p="$1" seg oldIFS="$IFS"; local -a out=()
+  IFS='/'
+  for seg in $p; do
+    case "$seg" in
+      ''|.) ;;
+      ..) [ ${#out[@]} -gt 0 ] && out=("${out[@]:0:${#out[@]}-1}") ;;
+      *) out+=("$seg") ;;
+    esac
+  done
+  IFS='/'; local res="${out[*]}"; IFS="$oldIFS"; printf '/%s' "$res"
+}
+
+# —— Registry block validation (#187 gap#1): $1=root_rel $2=block content $3=relative file path $4=file directory ——
+# Error lines go into global REG_ERRS[] (printed and marked as failures in the hard-error section); info lines (REGISTRY …) print immediately
+declare -a REG_ERRS=()
+process_registry_block() {
+  local root_rel="$1" block="$2" rel="$3" src_dir="$4"
+  local root_abs child name entries=0
+  if [ -z "$root_rel" ]; then
+    REG_ERRS+=("REGISTRY_BAD_ROOT $rel :: (empty) (marker declares no root directory)"); return
+  fi
+  case "$root_rel" in /*) root_abs="$(normpath "$root_rel")" ;; *) root_abs="$(normpath "$src_dir/$root_rel")" ;; esac
+  if [ ! -d "$root_abs" ]; then
+    REG_ERRS+=("REGISTRY_BAD_ROOT $rel :: $root_rel (root directory declared by registry does not exist)"); return
+  fi
+  local -A LISTED=()
+  local links raw dest abs
+  links="$(printf '%s' "$block" | grep -oE '\]\([^)]*\)')" || links=""
+  while IFS= read -r raw; do
+    [ -n "$raw" ] || continue
+    dest="${raw#](}"; dest="${dest%)}"; dest="${dest%%[$' \t']*}"
+    case "$dest" in http://*|https://*|mailto:*|\#*|'') continue ;; esac
+    dest="${dest%%#*}"; dest="${dest//%20/ }"
+    case "$dest" in /*) abs="$(normpath "$dest")" ;; *) abs="$(normpath "$src_dir/$dest")" ;; esac
+    entries=$((entries + 1))
+    if [ ! -e "$abs" ]; then
+      REG_ERRS+=("REGISTRY_GHOST $rel :: $dest (registry entry points to a nonexistent path)"); continue
+    fi
+    if [ "$abs" != "$root_abs" ]; then
+      case "$abs" in "$root_abs"/*) child="${abs#$root_abs/}"; LISTED["${child%%/*}"]=1 ;; esac
+    fi
+  done <<< "$links"
+  while IFS= read -r -d '' d; do
+    name="$(basename "$d")"
+    # Hidden directories (starting with .) are conventionally tools / CI / meta-configuration (.git .ci .claude .aca .github …),
+    # outside the registry scope, so registration is not required (v3.33.1; explicit links to hidden directories still undergo GHOST existence checks)
+    case "$name" in .*) continue ;; esac
+    [ -n "${LISTED[$name]:-}" ] || REG_ERRS+=("REGISTRY_MISSING $rel :: $root_rel/$name (existing subdirectory is not listed in the registry)")
+  done < <(find -L "$root_abs" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+  echo "REGISTRY $rel root=$root_rel entries=$entries"
+}
+
+# —— Enumerate .md files (check for failure, -print0 preserves unusual filenames, -z ensures deterministic sorting) ——
+# Prune tool / meta-configuration directories by default (by directory name, at any depth; see "Exclusions" above); filter --exclude globs when reading
+TMPF="$(mktemp)"; trap 'rm -f "$TMPF"' EXIT
+find -L "$DOCS_DIR" \( -name '.git' -o -name '.claude' -o -name '.aca' -o -name '.agents' \) -prune \
+  -o -type f -name '*.md' -print0 2>/dev/null | sort -z > "$TMPF"
+if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+  echo "ENUM_ERROR find enumeration failed (symlink loop / permissions / traversal error)"; echo "RESULT FAIL"; exit 1
+fi
+declare -a FILES=()
+while IFS= read -r -d '' f; do
+  if [ ${#EXCLUDES[@]} -gt 0 ]; then
+    rel="${f#$DOCS_DIR/}"; skip=0
+    for pat in "${EXCLUDES[@]}"; do
+      case "$rel" in $pat|$pat/*) skip=1; break ;; esac
+    done
+    [ "$skip" -eq 1 ] && continue
+  fi
+  FILES+=("$f")
+done < "$TMPF"
+echo "FILES ${#FILES[@]}"
+
+declare -A EXISTS=()
+for f in "${FILES[@]}"; do EXISTS["$f"]=1; done
+
+declare -A INBOUND=()
+declare -A EDGES=()
+declare -a BROKEN=()
+declare -a UNSUPPORTED=()
+declare -a READERR=()
+declare -a ANCHORS=()
+
+for f in "${FILES[@]}"; do
+  src_dir="$(dirname "$f")"
+
+  # Fence and inline code awareness (v3.31.1): first strip lines inside fences (``` / ~~~) and inline code spans (`…`)
+  # Then extract links — "links" in both locations are code examples, never rendered as Markdown links; treating them as navigation edges causes false positives
+  # BROKEN_LINK (the broken links in agent definition examples reported in #187 gap#3 fall into this category; directory exclusions only fixed half the issue;
+  # the anchor-link format examples in rap docs are similar); align with fence handling in the registry block parser
+  # HTML links <a href="x.md"> (layouts Markdown cannot express, such as centered headers) are rewritten to ](x.md) and checked like Markdown links
+  # awk / sed failure → READ_ERROR (fail-closed)
+  content="$(awk '
+    /^[ \t]*(```|~~~)/ { fence = !fence; next }
+    fence { next }
+    { gsub(/`[^`]*`/, ""); print }
+  ' "$f" 2>/dev/null | sed -E "s/<[aA][[:space:]][^>]*[hH][rR][eE][fF]=\"([^\"]*)\"[^>]*>/](\1)/g; s/<[aA][[:space:]][^>]*[hH][rR][eE][fF]='([^']*)'[^>]*>/](\1)/g")" \
+    || { READERR+=("${f#$DOCS_DIR/}"); continue; }
+
+  # fail-closed: explicitly reject link targets this extractor cannot parse safely (literal ( / escape \ / angle bracket <)
+  # Prevent missed errors when an embedded ) truncates the target at the first ) (such as ](a(b).md) / ](missing\).md) / ](<a)b.md>))
+  # Use [[:space:]] to limit scanning to dest (up to any whitespace before the title), avoiding false positives for parentheses in titles
+  if printf '%s\n' "$content" | grep -qE '\]\([^)[:space:]]*\(|\]\([^)[:space:]]*\\|\]\(<'; then
+    UNSUPPORTED+=("${f#$DOCS_DIR/} (link target contains ( / \\ / < , unsupported; simplify the filename / link)")
+  fi
+  # fail-closed: reference-style link definitions point to local .md files (this extractor only supports inline links and would miss reference-style links)
+  if printf '%s\n' "$content" | grep -qE '^[[:space:]]*\[[^]]+\]:[[:space:]]*[^[:space:]]+\.md'; then
+    UNSUPPORTED+=("${f#$DOCS_DIR/} (reference-style link definition points to .md, unsupported; use inline links)")
+  fi
+
+  # Extract all ](...) links (outside fences); no links → skip this file
+  links="$(printf '%s\n' "$content" | grep -oE '\]\([^)]*\)')" || links=""
+  [ -n "$links" ] || continue
+
+  while IFS= read -r raw; do
+    [ -n "$raw" ] || continue
+    dest="${raw#](}"; dest="${dest%)}"
+    dest="${dest%%[$' \t']*}"   # Strip title: split only on ASCII spaces and tabs to avoid truncating UTF-8 bytes (#467)
+    case "$dest" in http://*|https://*|mailto:*|\#*|'') continue ;; esac
+    frag=""; case "$dest" in *#*) frag="${dest#*#}" ;; esac   # Save anchor for validation if the target exists
+    dest="${dest%%#*}"; dest="${dest//%20/ }"             # Strip anchor + decode %20
+
+    # Determine the "doc target": use .md directly; directory link [x](dir/) → <dir>/README.md (only an edge if it exists; avoid false positives for asset directories)
+    docc=""
+    case "$dest" in
+      *.md) docc="$dest" ;;
+      *)
+        case "$dest" in /*) dabs="$(normpath "$dest")" ;; *) dabs="$(normpath "$src_dir/$dest")" ;; esac
+        if [ -d "$dabs" ] && [ -e "$dabs/README.md" ]; then docc="$dest/README.md"; fi
+        ;;
+    esac
+    [ -n "$docc" ] || continue   # Non-doc link (image / non-doc directory / other) → exclude from graph
+
+    case "$docc" in /*) abs="$(normpath "$docc")" ;; *) abs="$(normpath "$src_dir/$docc")" ;; esac
+    if [ -e "$abs" ]; then
+      # Anchor validation: target file heading slugs (lowercase, strip ASCII punctuation, whitespace→-) must contain the anchor (CONTEXT.md#term, etc.)
+      if [ -n "$frag" ]; then
+        want="$(printf '%b' "${frag//%/\x}" | tr '[:upper:]' '[:lower:]')"
+        hit="$(awk -v want="$want" '
+          /^#{1,6}[ 	]/ { s=$0; sub(/^#+[ 	]+/, "", s); sub(/[ 	]+$/, "", s); s=tolower(s)
+            gsub(/[()\[\]{}.,:;!?"`~@#$%^&*+=<>\/\|]/, "", s); gsub(/[ 	]+/, "-", s)
+            if (s == want) { print "hit"; exit } }' "$abs")"
+        [ "$hit" = hit ] || ANCHORS+=("${f#$DOCS_DIR/} -> $dest#$frag")
+      fi
+      # Exists: inside tree → add edge; outside tree → ignore (neither a broken link nor a navigation edge)
+      if [ -n "${EXISTS[$abs]:-}" ] && [ "$abs" != "$f" ]; then
+        case $'\n'"${EDGES[$f]:-}" in *$'\n'"$abs"$'\n'*) ;; *)
+          EDGES["$f"]+="$abs"$'\n'; INBOUND["$abs"]=$(( ${INBOUND[$abs]:-0} + 1 ))
+        ;; esac
+      fi
+    else
+      BROKEN+=("${f#$DOCS_DIR/} -> $dest")
+    fi
+  done <<< "$links"
+done
+
+# —— Compute the reachable set by BFS from the entry (follow Markdown link edges only) ——
+declare -A REACH=()
+if [ -n "${EXISTS[$ENTRY]:-}" ]; then
+  echo "ENTRY $ENTRY"
+  declare -a Q=("$ENTRY"); REACH["$ENTRY"]=1
+  while [ ${#Q[@]} -gt 0 ]; do
+    cur="${Q[0]}"; Q=("${Q[@]:1}")
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if [ -z "${REACH[$t]:-}" ]; then REACH["$t"]=1; Q+=("$t"); fi
+    done <<< "${EDGES[$cur]:-}"
+  done
+else
+  echo "ENTRY NO_ENTRY"
+fi
+echo "REACHABLE ${#REACH[@]}"
+
+# —— Scan registry blocks (#187 gap#1): check only blocks explicitly marked with aca-registry; skip fences (avoid false positives from doc examples) ——
+for f in "${FILES[@]}"; do
+  grep -q 'aca-registry:' "$f" 2>/dev/null || continue
+  reg_src_dir="$(dirname "$f")"
+  reg_rel="${f#$DOCS_DIR/}"
+  parsed="$(awk '
+    /^[ \t]*(```|~~~)/ { fence = !fence; next }
+    fence { next }
+    /<!--[ \t]*aca-registry:/ {
+      if (in_b) print "UNCLOSED"
+      root=$0; sub(/.*aca-registry:[ \t]*/, "", root); sub(/[ \t]*-->.*/, "", root)
+      print "ROOT " root; in_b=1; next
+    }
+    /<!--[ \t]*\/aca-registry[ \t]*-->/ { if (in_b) print "END"; in_b=0; next }
+    in_b { print "L " $0 }
+    END { if (in_b) print "UNCLOSED" }
+  ' "$f")"
+  reg_root=""; reg_block=""
+  while IFS= read -r pline; do
+    case "$pline" in
+      "ROOT "*) reg_root="${pline#ROOT }"; reg_block="" ;;
+      "L "*)    reg_block+="${pline#L }"$'\n' ;;
+      END)      process_registry_block "$reg_root" "$reg_block" "$reg_rel" "$reg_src_dir" ;;
+      UNCLOSED) REG_ERRS+=("REGISTRY_UNCLOSED $reg_rel (unclosed aca-registry block; requires <!-- /aca-registry -->)") ;;
+    esac
+  done <<< "$parsed"
+done
+
+fail=0
+
+# Hard errors (all trigger FAIL — under the "references must use Markdown links" convention, the link graph is the complete navigation graph, so all checks below are deterministic)
+for u in "${UNSUPPORTED[@]}"; do echo "UNSUPPORTED_LINK $u"; fail=1; done
+for r in "${READERR[@]}"; do echo "READ_ERROR $r"; fail=1; done
+for b in "${BROKEN[@]}"; do echo "BROKEN_LINK $b"; fail=1; done
+for a in ${ANCHORS[@]+"${ANCHORS[@]}"}; do echo "BROKEN_ANCHOR $a"; fail=1; done
+for e in ${REG_ERRS[@]+"${REG_ERRS[@]}"}; do echo "$e"; fail=1; done
+[ -n "${EXISTS[$ENTRY]:-}" ] || { echo "MISSING_ENTRY README.md"; fail=1; }
+for f in "${FILES[@]}"; do
+  [ "$f" = "$ENTRY" ] && continue
+  [ "${INBOUND[$f]:-0}" -eq 0 ] && { echo "ORPHAN ${f#$DOCS_DIR/}"; fail=1; }
+done
+if [ -n "${EXISTS[$ENTRY]:-}" ]; then
+  for f in "${FILES[@]}"; do
+    [ "$f" = "$ENTRY" ] && continue
+    [ -z "${REACH[$f]:-}" ] && { echo "UNREACHABLE ${f#$DOCS_DIR/}"; fail=1; }
+  done
+  # Front page detection: docs/README is only an index; headings must not include front page sections (✨ What Is This / 🚀 How to Use) — the front page belongs in the root README
+  # Match front page markers exactly (✨ / 🚀 / 这是什么 / What Is This), excluding the index marker 📚; any match is a hard error (fail-closed, same severity as ORPHAN)
+  if grep -qE '^#{1,6}[[:space:]].*(✨|🚀|这是什么|What Is This)' "$ENTRY" 2>/dev/null; then
+    echo "FACADE_HEADING README.md (docs/README contains front page sections; it must only be an index, with the front page in the root README)"
+    fail=1
+  fi
+fi
+
+if [ "$fail" -eq 0 ]; then echo "RESULT OK"; exit 0; else echo "RESULT FAIL"; exit 1; fi

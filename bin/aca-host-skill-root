@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Print the global skills directory for a supported Agent platform.
+set -euo pipefail
+case "${1:-}" in
+  claude|codex|cursor|grok) printf '%s/.%s/skills\n' "$HOME" "$1" ;;
+  antigravity) printf '%s/.gemini/config/skills\n' "$HOME" ;;
+  antigravity-cli) printf '%s/.gemini/antigravity-cli/skills\n' "$HOME" ;;
+  *) echo "Error: Unknown --host '${1:-}'" >&2; exit 1 ;;
+esac

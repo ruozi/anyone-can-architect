@@ -1,0 +1,33 @@
+# Changelog
+
+## [Unreleased]
+
+### Added
+
+- {New features or interface changes}
+
+### Changed
+
+- {Changes to existing behavior or usage, with compatibility impacts and migration steps as needed}
+
+### Deprecated
+
+- {Features announced as deprecated but still available, and their alternatives}
+
+### Removed
+
+- {Removed features and their impacts, with migration steps as needed}
+
+### Fixed
+
+- {Issues fixed and results users can notice}
+
+### Security
+
+- {Security-related changes and their scope of impact}
+
+## [{version number}] — {YYYY-MM-DD}
+
+### Added
+
+- {New content actually delivered in this version}

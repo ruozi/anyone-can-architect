@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# aca-tag-notify-extract — Extract the release summary (NOTIFY block) body from an annotated tag (#462)
+#
+# Platform-independent "summary → text" extractor: any CI/CD (CNB / GitHub Actions / GitLab CI / Gitea …)
+# release announcement step calls this script for content and handles "text → channel" itself. See aca-tag-notify-check for summary format and validation
+#
+# Output: NOTIFY block body (excluding BEGIN / END marker lines; PGP signature section stripped)
+# Exit:   0=summary found  1=tag has no NOTIFY block or block is empty  2=tag does not exist / missing argument
+# Usage:  bash aca-tag-notify-extract <tag> [--bullet]   (--bullet: convert leading "- " to "• " for more reliable IM rendering)
+
+set -euo pipefail
+
+TAG="${1:-}"
+MODE="${2:-}"
+if [ -z "$TAG" ]; then
+  echo "USAGE aca-tag-notify-extract <tag> [--bullet]" >&2
+  exit 2
+fi
+if ! git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+  echo "NO_TAG $TAG" >&2
+  exit 2
+fi
+
+msg="$(git for-each-ref "refs/tags/${TAG}" --format='%(contents)' | sed '/^-----BEGIN PGP SIGNATURE-----$/,$d' | tr -d '\r')"
+block="$(printf '%s\n' "$msg" | awk '
+  /^---NOTIFY-BEGIN---[[:space:]]*$/ {f=1; next}
+  /^---NOTIFY-END---[[:space:]]*$/ {f=0; exit}
+  f {print}
+')"
+if ! printf '%s\n' "$block" | grep -q '[^[:space:]]'; then
+  echo "NO_NOTIFY $TAG" >&2
+  exit 1
+fi
+if [ "$MODE" = "--bullet" ]; then
+  printf '%s\n' "$block" | sed 's/^- /• /'
+else
+  printf '%s\n' "$block"
+fi

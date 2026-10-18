@@ -1,0 +1,49 @@
+# {project name} — ROADMAP
+
+## 1 Current State
+
+- **Latest release**: {released version, omit if no version has been released}
+- **Version in progress**: {target version, omit if no version is in progress}
+- **Current phase**: {current phase of the target version}
+- **Milestones achieved**: {results actually completed}
+
+## 2 Future Release Planning
+
+{fill in when future release plans are confirmed}
+
+### 2.1 {target version number}
+
+**Goal**: {results this version should achieve}
+
+**Planned scope**:
+
+- {features, fixes, or adjustments confirmed for inclusion}
+- {features, fixes, or adjustments confirmed for inclusion}
+
+**Excluded items**:
+
+- {content that could be mistaken as included in this version and reasons for exclusion, fill in as needed}
+
+### 2.2 {another target version number}
+
+**Goal**: {results this version should achieve}
+
+**Planned scope**:
+
+- {features, fixes, or adjustments confirmed for inclusion}
+
+## 3 Release Evolution Path
+
+{fill in when the goals and status of multiple versions need to be shown together}
+
+| Version number | Goal | Status |
+| --- | --- | --- |
+| {released version} | {brief goal} | {actual completion status} |
+| {planned version} | {brief goal} | {actual progress status} |
+
+## 4 Direction Planning
+
+{fill in when directions have not yet been assigned to specific versions}
+
+- {direction and desired results}
+- {direction and desired results}

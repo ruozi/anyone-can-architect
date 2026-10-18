@@ -1,0 +1,181 @@
+---
+name: aca-implement
+description: |
+  1. Set implementation goals and completion criteria based on the design
+  2. Plan the responsibilities and structure of source code and test files based on module boundaries and internal design
+  3. Orchestrate implementation and verification tasks by module dependencies
+  4. Create all directories and file placeholders according to the plan
+  5. Assign sub-agents by module dependencies, implement in parallel wherever possible, and run black-box and white-box tests
+  6. Commit the corresponding changes after each module passes verification
+  7. Integrate the commits of verified modules
+  8. Complete overall verification and check the completion criteria for the goal
+  Change only code and tests
+---
+
+# aca-implement
+
+Implement code and tests according to the design docs for the current scope
+Change only code and tests, not design docs
+
+## 1 Principles
+
+1. **Goal-driven**
+   Use confirmed delivery goals to determine the implementation scope and task priorities
+   Use completion criteria and their verification evidence to determine whether the goals are met
+2. **Dependency-driven parallelism**
+   Use dependencies to determine the implementation order
+   Run tasks in parallel wherever possible when their dependencies are satisfied and they have no shared resource conflicts
+3. **Test-driven**
+   Use external contracts and internal design to determine test expectations
+   Drive implementation with tests and use both black-box and white-box tests to verify design requirements
+4. **Scope constraints**
+   Keep implementation and refactoring within the confirmed design scope
+
+## 2 Workflow
+
+```mermaid
+flowchart TD
+    Start([Receive the confirmed design and implementation scope]) --> Plan["Goals and Task Orchestration · §3"]
+    Plan --> Prepare["Implementation Preparation · §4"]
+    Prepare --> Implement["Implementation and Integration · §5"]
+    Implement -- All remaining tasks are blocked and no tasks are in progress --> Report
+    Implement --> Modules{All module tasks are complete and integrated}
+    Modules -- No --> Implement
+    Modules -- Yes --> Verify["Overall Verification · §6"]
+    Verify --> Complete{All completion criteria for the current scope are verified as satisfied}
+    Complete -- No, the design is clear and fixes are possible within the current scope --> Implement
+    Complete -- No, remaining verification can continue --> Verify
+    Complete -- No, remaining fixes or verification are blocked --> Report
+    Complete -- Yes --> Report(["Output and Next Step · §7"])
+```
+
+## 3 Goals and Task Orchestration
+
+Read the design docs, project configuration, existing code, and tests for the current scope
+Check the workspace state and recent commits to verify current implementation progress and existing changes
+Preserve existing changes outside the scope of this implementation
+
+1. List deliverables and their completion criteria based on the confirmed design and implementation scope
+2. Compare delivery requirements with existing code and tests, and list what to reuse, modify, add, or remove
+3. List the tests to run for this implementation based on the black-box and white-box test designs
+   Specify the environments and fixtures these tests require
+4. List the modules involved in this implementation and their dependencies based on the design
+   Modules include submodules at all levels: top-level modules come from architecture, and submodules come from the internal composition of their direct parent's class-design
+5. Specify whether each test uses real dependencies or test doubles based on the test design
+   Check the readiness of required dependencies
+6. Plan the source code and test file structure based on module boundaries, internal design, and repository conventions
+   List all source code and test directories and files within the current implementation scope
+7. Specify each file's responsibilities, owning module, and dependencies
+   Check whether each file has a single responsibility and whether responsibilities overlap
+   Adjust file boundaries when responsibilities are not singular or overlap
+8. Split implementation preparation, module implementation, integration, and overall verification into tasks
+   Use modules in the design as the smallest units of implementation, verification, and commits
+   When submodules exist, create separate tasks for each submodule and the parent's composition implementation, with the parent task depending on all its submodule tasks
+9. Specify each task's dependencies, owner, and completion criteria
+10. Use the goal or task management capabilities provided by the current AI Agent environment to maintain the overall goal and task progress
+    Record each task's status: pending implementation, in progress, complete, or blocked
+    Record verification evidence and the next action for each task
+    When resuming a task, check task records, the workspace, and recent commits
+    Update task status based on the findings and continue implementation
+
+## 4 Implementation Preparation
+
+1. Add all missing source code and test directories and file placeholders for the current scope according to the plan
+   Reuse existing files directly and create new files as empty files
+   Delete files explicitly marked for removal in the plan only after verifying that they no longer serve a valid responsibility
+   When a file's purpose, dependencies, or deletion scope cannot be confirmed, retain it and verify with the developer
+   Start module implementation only after all file placeholders are in place
+2. The main agent assigns separate workspaces to sub-agents
+   Allocate test resources according to the test design to ensure parallel tasks do not interfere with each other
+   Synchronize the prepared file structure to each workspace
+3. Provide each sub-agent with the following task context
+   - The overall implementation goal, the functionality to complete for the current module, and the scope of changes
+   - Links to relevant chapters covering the structural basis, interfaces, internal design, and test cases for the current module and its dependencies
+     The structural basis for top-level modules is architecture, and the structural basis for submodules is the internal composition of the parent's class-design
+   - The readiness of each dependency and the arrangements for real dependencies or test doubles in tests
+   - The workspace path, starting commit, files permitted for modification, and applicable repository conventions
+   - Test environments and fixtures, verification commands, and module completion criteria
+   - Change only code and tests
+   - Follow the [Exception Handling](#52-exception-handling) requirements
+   - Return changed files, commit records, verification commands and results, unverified items, and reasons for blockers
+
+   When files owned by other tasks or shared files are involved, first ask the main agent to coordinate
+
+## 5 Implementation and Integration
+
+### 5.1 Implementation Loop
+
+1. The main agent selects module tasks whose dependencies are satisfied
+   Assign tasks that can run in parallel to sub-agents
+2. Implement and verify each module according to the test design
+   1. Prepare and run tests
+      Reuse, write, or update black-box and white-box tests for the module's current scope according to the design
+      When new or changed design requirements are not yet implemented, confirm that the corresponding tests fail
+      For refactoring that preserves behavior, first run the corresponding tests to establish a verification baseline
+   2. Complete and verify changes within the module's current scope according to the design
+      Follow repository conventions for implementation details not specified by the design
+      When the repository has no corresponding conventions, use the simplest implementation that meets the design
+      When the design includes a Lark (Feishu) card mockup, implement it according to [Lark Card Mapping](~/.claude/skills/aca/skills/references/lark-card-mapping.md)
+      Run module tests and confirm that all pass
+   3. Refactor as needed and verify again
+      After refactoring, rerun module tests and confirm that all pass
+   When an unexpected test failure occurs and the design is clear, fix the code and rerun the affected tests
+3. Check black-box and white-box test results and other completion criteria for the module's current scope
+   Once all criteria are satisfied, stage and commit only the current task's changes
+4. The main agent checks module commits and verification evidence
+   Integrate the module's commits after confirming that it meets the completion criteria
+   Run tests for affected modules and integration tests between modules on the integrated code
+5. The main agent updates task status, verification evidence, and dependency readiness
+   Record the reasons for blocked tasks and the conditions for resuming them
+   Synchronize integrated dependency commits that have passed verification to module workspaces that require real dependencies
+   If tasks remain that can be implemented, return to step 1
+   If no tasks can be assigned and tasks are still in progress, wait for execution results
+   After all module tasks are complete and integrated, proceed to [Overall Verification](#6-overall-verification)
+   If all remaining tasks are blocked and no tasks are in progress, report the incomplete status according to [Output](#7-output)
+
+### 5.2 Exception Handling
+
+1. When the design is missing, contains conflicts, or cannot be implemented, the agent executing the task pauses affected tasks
+   Sub-agents report the issue and its scope of impact to the main agent
+   The main agent verifies the issue and its scope of impact, then reports them to the developer
+   When the solution needs additions or revisions, recommend using `/aca-specify`
+   Continue unaffected independent tasks
+2. When issues are found in other repositories, the main agent verifies them and reports the issues and their impact to the developer
+   Do not modify other repositories without authorization
+
+## 6 Overall Verification
+
+After all module tasks are complete and integrated, the main agent performs overall verification for the current delivery scope
+Run module tests, integration tests, system tests, builds, and static checks according to the implementation plan
+Execute the test cases specified in the design and verify the runtime results of the subject under test
+Passing builds or static checks cannot replace behavioral test results
+
+When issues are found for which the design is clear and fixes are possible within the current scope, return to [Implementation and Integration](#5-implementation-and-integration)
+Rerun affected verification after fixes
+Check each completion criterion against the overall goal
+Update task records with verification results and unverified items
+
+## 7 Output
+
+When all completion criteria for the current scope are verified as satisfied, mark the goal and tasks as complete
+If incomplete, report remaining work, reasons for blockers, and actions to resume
+After this implementation is complete, use `/aca-review` to review the implementation within this scope
+Provide Review with the overall goal, corresponding design, implementation scope, and comparison baseline
+Identify the commits and uncommitted changes under review, and provide verification results and evidence
+Use the following format for the final report, filling in the title and results according to the actual status
+
+```markdown
+# 🛠️ Implement: <complete / incomplete>
+
+| Item | Result |
+| --- | --- |
+| Goal | <overall goal and completion criteria satisfaction> |
+| Scope | <implementation scope and module progress> |
+| Changes | <main implementation changes> |
+| Verification | <test execution, build, and static check results> |
+| Unverified | <unverified scope / none> |
+| Commits | <commit records / uncommitted> |
+| Blockers | <blockers and reasons / none> |
+| Recommendations | <extension recommendations / none> |
+| Next step | <one immediately actionable step> |
+```

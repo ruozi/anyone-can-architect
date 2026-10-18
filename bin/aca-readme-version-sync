@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# aca-readme-version-sync — Sync the repo version and Anyone Can Architect version at the end of the root README
+# Usage: bash aca-readme-version-sync [README.md] <repo-version> [aca-version]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ACA_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+README_PATH="${1:-README.md}"
+REPO_VERSION="${2:-}"
+ACA_VERSION="${3:-}"
+SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?(\+[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$'
+
+if [ ! -f "$README_PATH" ]; then
+  echo "MISSING_README $README_PATH — Run /aca-init first" >&2
+  exit 2
+fi
+if ! printf '%s\n' "$REPO_VERSION" | grep -Eq "$SEMVER_RE"; then
+  echo "INVALID_REPO_VERSION ${REPO_VERSION:-empty}" >&2
+  exit 2
+fi
+if [ -z "$ACA_VERSION" ] && [ -r "$ACA_ROOT/VERSION" ]; then
+  ACA_VERSION=$(tr -d '[:space:]' < "$ACA_ROOT/VERSION")
+fi
+if ! printf '%s\n' "$ACA_VERSION" | grep -Eq "$SEMVER_RE"; then
+  echo "INVALID_ACA_VERSION ${ACA_VERSION:-empty}" >&2
+  exit 2
+fi
+
+FOOTER_SIGNATURE='Powered by [Anyone Can Architect](https://github.com/ruozi/anyone-can-architect) v'
+footer_count=$(grep -cF "$FOOTER_SIGNATURE" "$README_PATH" || true)
+if [ "$footer_count" -ne 1 ]; then
+  echo "MISSING_FOOTER $README_PATH — Run /aca-init first to ensure exactly one Anyone Can Architect mark" >&2
+  exit 2
+fi
+
+footer_number=$(grep -nF "$FOOTER_SIGNATURE" "$README_PATH" | cut -d: -f1)
+last_line_number=$(awk 'END { print NR+0 }' "$README_PATH")
+if [ "$footer_number" -ne "$last_line_number" ]; then
+  echo "FOOTER_NOT_LAST $README_PATH — Run /aca-init to correct the two-line version block" >&2
+  exit 2
+fi
+if [ "$footer_number" -le 1 ]; then
+  echo "MISSING_REPO_VERSION $README_PATH — Run /aca-init to add the repo name and version" >&2
+  exit 2
+fi
+
+repo_number=$((footer_number - 1))
+repo_line=$(sed -n "${repo_number}p" "$README_PATH")
+case "$repo_line" in
+  '> '*' v'*'**') ;;
+  *)
+    echo "MISSING_REPO_VERSION $README_PATH — Run /aca-init to add the repo name and version" >&2
+    exit 2
+    ;;
+esac
+repo_stem=${repo_line%\*\*}
+old_repo_version=${repo_stem##* v}
+repo_prefix=${repo_stem%" v$old_repo_version"}
+REPO_MARKER='> 📦 **'
+case "$repo_prefix" in
+  "$REPO_MARKER"*) ;;
+  *)
+    echo "INVALID_REPO_VERSION_LINE $README_PATH — Run /aca-init to restore the required format" >&2
+    exit 2
+    ;;
+esac
+if [ "$repo_prefix" = "$REPO_MARKER" ] || [ "$repo_prefix" = "$repo_stem" ] \
+  || ! printf '%s\n' "$old_repo_version" | grep -Eq "$SEMVER_RE"; then
+  echo "INVALID_REPO_VERSION_LINE $README_PATH — Run /aca-init to restore the required format" >&2
+  exit 2
+fi
+
+footer_line=$(grep -F "$FOOTER_SIGNATURE" "$README_PATH")
+footer_tail=${footer_line#*"$FOOTER_SIGNATURE"}
+old_aca_version=${footer_tail%% *}
+footer_suffix=${footer_tail#"$old_aca_version"}
+footer_prefix=${footer_line%%"$FOOTER_SIGNATURE"*}
+if [ "$footer_prefix" != '> 🤝 ' ] || [ -z "$old_aca_version" ] \
+  || ! printf '%s\n' "$old_aca_version" | grep -Eq "$SEMVER_RE" \
+  || ! printf '%s\n' "$footer_suffix" | grep -Eq '^ · Repo-Type: `[^`]+`$'; then
+  echo "INVALID_FOOTER $README_PATH — Run /aca-init to restore the required format" >&2
+  exit 2
+fi
+
+if [ "$old_repo_version" = "$REPO_VERSION" ] && [ "$old_aca_version" = "$ACA_VERSION" ]; then
+  echo "UNCHANGED $REPO_VERSION $ACA_VERSION"
+  exit 0
+fi
+
+tmp=$(mktemp "${README_PATH}.tmp.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+line_number=0
+while IFS= read -r line || [ -n "$line" ]; do
+  line_number=$((line_number + 1))
+  if [ "$line_number" -eq "$repo_number" ]; then
+    printf '%s v%s**\n' "$repo_prefix" "$REPO_VERSION"
+  elif [ "$line_number" -eq "$footer_number" ]; then
+    printf '%s%s%s%s\n' "$footer_prefix" "$FOOTER_SIGNATURE" "$ACA_VERSION" "$footer_suffix"
+  else
+    printf '%s\n' "$line"
+  fi
+done < "$README_PATH" > "$tmp"
+cp "$tmp" "$README_PATH"
+rm -f "$tmp"
+trap - EXIT
+
+echo "UPDATED $old_repo_version $REPO_VERSION $old_aca_version $ACA_VERSION"

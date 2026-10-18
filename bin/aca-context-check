@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# aca-context-check — Root CONTEXT.md shape validation (mechanical half of terminology SSOT)
+#
+# The single shape validator shared by aca-init after writing files and aca-specify / aca-review at startup
+#
+# The only CONTEXT schema: H1 + `## Language` (required) + `## Relationships` / `## Example dialogue`
+# / `## Flagged ambiguities` (as needed). Include only stable term definitions; business purpose belongs in root README, versions/status in
+# ROADMAP, release facts in CHANGELOG, external sources in SSOT, and design/parameters in docs/design
+# Allow a minimal valid form (no repo-specific terms: H1 + one explanatory sentence under Language)
+#
+# Checks (exempt fenced ``` / inline `code` content, same policy as aca-doc-graph-check):
+#   CONTEXT_NO_H1            First content line is not a single H1
+#   CONTEXT_PREAMBLE_PROSE   Body text between H1 and the first H2 (business descriptions belong in root README)
+#   CONTEXT_BAD_SECTION      H2 is not in the allowlist (Language/Relationships/Example dialogue/Flagged ambiguities)
+#   CONTEXT_NO_LANGUAGE      Missing `## Language`
+#   CONTEXT_VERSION_REF      Body contains a version number (v1.2 / v0.1.0 …) — terms are version-independent
+#   CONTEXT_LINK_REF         Body contains an http(s) link — external sources belong in SSOT
+#   CONTEXT_TERM_FORMAT      Invalid entry format in Language: entry = nonempty `### ` heading; English allows letters, digits, spaces, underscores, hyphens, and periods; preserve the name's case (#476/#492/#495)
+#                            Allow Chinese headings (no rules yet); legacy `**term**:` bold
+#                            entries and H4+ headings are invalid
+#   CONTEXT_TERM_DUP         Duplicate entry heading in Language (anchor collision, case-insensitive)
+#
+# Output: CONTEXT_CHECK <path> / check lines / RESULT OK|FAIL (+ migration mapping hints on FAIL)
+# Exit:   0=OK  1=FAIL  2=file not found
+# Usage:  bash aca-context-check [CONTEXT.md path, default ./CONTEXT.md]
+
+set -euo pipefail
+
+TARGET="${1:-CONTEXT.md}"
+if [ ! -f "$TARGET" ]; then
+  echo "NO_CONTEXT $TARGET"
+  exit 2
+fi
+
+echo "CONTEXT_CHECK $TARGET"
+fail=0
+
+# Strip fenced blocks + inline code (content checks use stripped text; structural checks use original line order, skipping fenced lines)
+# Use one awk pass to output annotated lines: prefix each line with F (inside fence) / N (normal, inline code stripped)
+annotated="$(awk '
+  /^[ \t]*(```|~~~)/ { fence = !fence; print "F"; next }
+  fence { print "F"; next }
+  { line = $0; gsub(/`[^`]*`/, "", line); print "N" line }
+' "$TARGET")"
+
+h1_seen=0
+first_h2_seen=0
+lang_seen=0
+in_lang=0
+terms_seen=""
+lineno=0
+while IFS= read -r raw; do
+  lineno=$((lineno + 1))
+  [ "$raw" = "F" ] && continue
+  line="${raw#N}"
+
+  # Skip blank lines
+  case "$line" in
+    *[![:space:]]*) ;;
+    *) continue ;;
+  esac
+
+  # H1 (recognize only the first content block)
+  if [ "$h1_seen" -eq 0 ]; then
+    case "$line" in
+      "# "*) h1_seen=1; continue ;;
+      *) echo "CONTEXT_NO_H1 First content line is not H1 (line $lineno)"; fail=1; h1_seen=1 ;;
+    esac
+  fi
+
+  # H2 section
+  case "$line" in
+    "## "*)
+      first_h2_seen=1
+      sec="${line#\#\# }"
+      # Remove trailing whitespace
+      sec="$(printf '%s' "$sec" | sed -E 's/[[:space:]]+$//')"
+      in_lang=0
+      case "$sec" in
+        Language) lang_seen=1; in_lang=1 ;;
+        Relationships|"Example dialogue"|"Flagged ambiguities") ;;
+        *) echo "CONTEXT_BAD_SECTION $sec (line $lineno; allowlist: Language/Relationships/Example dialogue/Flagged ambiguities)"; fail=1 ;;
+      esac
+      continue
+      ;;
+  esac
+
+  # Language entry checks (#456 / #476 / #492 / #495): nonempty H3, unique ignoring case; preserve code or external standard names
+  if [ "$in_lang" -eq 1 ]; then
+    case "$line" in
+      "### "*)
+        term="$(printf "%s" "${line#'### '}" | sed -E "s/[[:space:]]+$//")"
+        if [ -z "$term" ]; then
+          echo "CONTEXT_TERM_FORMAT line $lineno: Entry heading must not be empty"; fail=1
+          continue
+        fi
+        if printf "%s" "$term" | LC_ALL=C grep -qE "^[[:print:]]*$"; then
+          # Preserve code names and original external standard names such as app-ads.txt (#492/#495)
+          if ! printf "%s" "$term" | grep -qE "^[A-Za-z0-9 ._-]+$"; then
+            echo "CONTEXT_TERM_FORMAT line $lineno: \"$term\" English entries allow only letters, digits, spaces, underscores, hyphens, and periods"; fail=1
+          fi
+        fi
+        key="$(printf "%s" "$term" | tr "[:upper:]" "[:lower:]")"
+        case "$terms_seen" in
+          *"|$key|"*) echo "CONTEXT_TERM_DUP line $lineno: \"$term\" Duplicate entry heading (anchor collision)"; fail=1 ;;
+          *) terms_seen="$terms_seen|$key|" ;;
+        esac
+        continue
+        ;;
+      "#### "*)
+        echo "CONTEXT_TERM_FORMAT line $lineno: Entries must use ### H3 headings, not deeper levels"; fail=1
+        continue
+        ;;
+    esac
+    if printf "%s" "$line" | grep -qE "^\*\*[^*]+\*\*[:：]"; then
+      echo "CONTEXT_TERM_FORMAT line $lineno: Legacy bold entry $(printf "%s" "$line" | head -c 40) → Change to a ### H3 heading (#456)"; fail=1
+    fi
+  fi
+
+  # Body text between H1 and the first H2 = preamble prose (business description)
+  if [ "$first_h2_seen" -eq 0 ]; then
+    echo "CONTEXT_PREAMBLE_PROSE line $lineno: $(printf '%s' "$line" | head -c 60)"
+    fail=1
+    first_h2_seen=1   # Report only the first occurrence to avoid flooding output
+  fi
+done <<EOF_ANN
+$annotated
+EOF_ANN
+
+[ "$lang_seen" -eq 1 ] || { echo "CONTEXT_NO_LANGUAGE Missing ## Language section"; fail=1; }
+
+# Content checks: version numbers / links (fences and inline code already stripped)
+stripped="$(printf '%s\n' "$annotated" | sed -n 's/^N//p')"
+ver_hit="$(printf '%s\n' "$stripped" | grep -nE '(^|[^[:alnum:]])v[0-9]+\.[0-9]+(\.[0-9]+)?([^[:alnum:]]|$)' | head -3)" || ver_hit=""
+if [ -n "$ver_hit" ]; then
+  printf '%s\n' "$ver_hit" | sed 's/^/CONTEXT_VERSION_REF line /'
+  fail=1
+fi
+link_hit="$(printf '%s\n' "$stripped" | grep -nE 'https?://' | head -3)" || link_hit=""
+if [ -n "$link_hit" ]; then
+  printf '%s\n' "$link_hit" | sed 's/^/CONTEXT_LINK_REF line /'
+  fail=1
+fi
+
+if [ "$fail" -eq 0 ]; then
+  echo "RESULT OK"
+  exit 0
+fi
+echo "RESULT FAIL"
+echo "Migration mapping: business purpose → root README; versions/status → non-guideline ROADMAP; release facts → Git / Tag or the non-document deliverable's own CHANGELOG; external sources/links → SSOT.md; design/parameters → docs/design. Remove from CONTEXT after moving; do not apply a false fix by updating old versions to new versions"
+exit 1

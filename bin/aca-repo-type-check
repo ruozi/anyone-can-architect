@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# aca-repo-type-check — Detect Repo-Type in the project README.md footer
+#
+# Check the footer at the end of the project README.md:
+# - No footer → output NEEDS_INIT, exit 1
+# - Footer exists and type is pending (waiting for Anyone Can Architect to add the type) → output PENDING, exit 1
+# - Footer exists but type has no corresponding repo-type spec → output INVALID_TYPE <found>, exit 1
+# - Footer exists + type is valid → output the type value, exit 0
+#
+# Output (stdout, one line):
+#   <repo-type>            — Valid type: a repo-type spec with the same name exists under doc-design/repo-types/
+#   NEEDS_INIT             — Footer missing or parsing failed
+#   PENDING                — Waiting for Anyone Can Architect to add the type; not yet supported
+#   INVALID_TYPE <found>   — Type has no corresponding repo-type spec
+#
+# Usage:
+#   bash aca-repo-type-check                # Current cwd
+#   bash aca-repo-type-check /path/to/proj  # Specified path
+
+set -euo pipefail
+
+# Match UTF-8 footer bytes consistently across host locales.
+export LC_ALL=C
+
+PROJECT_DIR="${1:-$(pwd)}"
+README_FILE="$PROJECT_DIR/README.md"
+
+# Valid repo types come from the repo-type spec directory: each doc-design/repo-types/<type>.md defines one type
+# bin/ and doc-design/ are siblings in both the source repository and installation directory; adding or removing specs adds or removes valid types
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_TYPES_DIR="$SCRIPT_DIR/../doc-design/repo-types"
+VALID_TYPES=""
+if [ -d "$REPO_TYPES_DIR" ]; then
+  for rule in "$REPO_TYPES_DIR"/*.md; do
+    [ -f "$rule" ] || continue
+    VALID_TYPES="$VALID_TYPES $(basename "$rule" .md)"
+  done
+fi
+
+# Step 1: README does not exist
+if [ ! -f "$README_FILE" ]; then
+  echo "NEEDS_INIT"
+  exit 1
+fi
+
+# Step 2: Find the footer line (match pattern: > 🤝 Powered by [Anyone Can Architect]...Repo-Type: `xxx`)
+FOOTER_LINE=$(grep -E '^> 🤝 Powered by \[Anyone Can Architect\].*Repo-Type:' "$README_FILE" 2>/dev/null | head -1 || true)
+
+if [ -z "$FOOTER_LINE" ]; then
+  echo "NEEDS_INIT"
+  exit 1
+fi
+
+# Step 3: Extract the type value (capture group: Repo-Type: `xxx`)
+TYPE=$(echo "$FOOTER_LINE" | sed -nE 's/.*Repo-Type: `([a-z-]+)`.*/\1/p')
+
+if [ -z "$TYPE" ]; then
+  echo "NEEDS_INIT"
+  exit 1
+fi
+
+# Step 4: pending placeholder (written by aca-init Phase 2 while waiting for a new type)
+if [ "$TYPE" = pending ]; then
+  echo "PENDING"
+  exit 1
+fi
+
+# Step 5: Validate enum
+if echo " $VALID_TYPES " | grep -q " $TYPE "; then
+  echo "$TYPE"
+  exit 0
+else
+  echo "INVALID_TYPE $TYPE"
+  exit 1
+fi

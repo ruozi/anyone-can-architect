@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# aca-prose-check — Mechanical checks for writing axioms: check markdown body text for one sentence per line, no trailing periods, and chapter numbering
+#
+# Criteria (exempt inside ``` fences / inline `code` / frontmatter / HTML comments / HTML tag lines):
+#   PROSE_PERIOD       Body line ends with "。" (no trailing periods)
+#   PROSE_MULTI        Body line contains "。" mid-line (one sentence per line)
+#   CELL_PERIOD        Table cell contains "。" (write fragments, not sentences)
+#   CELL_SEMICOLON     Table cell contains "；" (put separate facts on separate lines, without semicolons)
+#   LIST_LABEL         Top-level list item uses "short label: content" (indent branches under their parent items; write complete sentences at the top level)
+#   HEADING_DOT        Chapter number has a trailing dot (`## 1. Title`); ISO 2145 uses `## 1 Title`
+#
+# Output: PROSE_CHECK <path> / diagnostic lines "CODE line N: snippet" / SUMMARY counts by code / RESULT OK|FAIL
+# Exit:   0=OK  1=FAIL  2=target not found
+# Usage:  bash aca-prose-check <file-or-directory>...   (recursively scan all *.md in directories)
+
+set -euo pipefail
+
+[ $# -gt 0 ] || { echo "Usage: aca-prose-check <file-or-directory>..." >&2; exit 2; }
+
+files=""
+for t in "$@"; do
+  if [ -d "$t" ]; then
+    files="$files
+$(find "$t" -name '*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' | sort)"
+  elif [ -f "$t" ]; then
+    files="$files
+$t"
+  else
+    echo "NO_TARGET $t"; exit 2
+  fi
+done
+
+total_fail=0
+summary_all=""
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  echo "PROSE_CHECK $f"
+  out="$(LC_ALL=C.UTF-8 awk '
+    # Keep complete diagnostic lines to avoid macOS awk multibyte conversion errors from byte-truncated Chinese text
+    function snippet(s) { gsub(/[[:space:]]+$/, "", s); return s }
+    function report(code, n, s) { print code " line " n ": " snippet(s); cnt[code]++ }
+    function strip_code(s,   out, i, c, inq) {  # Remove inline `code`
+      out = ""; inq = 0
+      for (i = 1; i <= length(s); i++) { c = substr(s, i, 1)
+        if (c == "`") { inq = !inq; continue }
+        if (!inq) out = out c }
+      return out
+    }
+    function en_mask(s) {  # Periods in English abbreviations do not count as sentence endings
+      gsub(/(e\.g|i\.e|etc|vs|cf|No|Fig|approx|incl)\./, "&_", s)
+      gsub(/\.\.\./, "_", s)
+      return s
+    }
+    BEGIN { fence = 0; fm = 0; html = 0 }
+    NR == 1 && $0 == "---" { fm = 1; next }
+    fm == 1 { if ($0 == "---") fm = 2; next }
+    /^[[:space:]]*```/ { fence = !fence; next }
+    fence { next }
+    /<!--/ && !/-->/ { html = 1; next }
+    html { if (/-->/) html = 0; next }
+    /^[[:space:]]*<!--.*-->[[:space:]]*$/ { next }
+    /^[[:space:]]*$/ { next }
+    {
+      raw = $0
+      line = strip_code(raw)
+      # Headings
+      if (raw ~ /^#{1,6} /) {
+        if (raw ~ /^#{1,6} [0-9]+(\.[0-9]+)*\. /) report("HEADING_DOT", NR, raw)
+        next
+      }
+      # Tables: check each cell for periods and semicolons
+      if (raw ~ /^[[:space:]]*\|/) {
+        if (raw ~ /^[[:space:]]*\|[[:space:]:|-]+\|[[:space:]]*$/) next
+        n = split(line, cells, "|")
+        for (i = 2; i < n; i++) {
+          c = cells[i]; gsub(/^[[:space:]]+|[[:space:]]+$/, "", c)
+          if (c ~ /。/) report("CELL_PERIOD", NR, c)
+          if (c ~ /；/) report("CELL_SEMICOLON", NR, c)
+          ce = en_mask(c)
+          if (ce ~ /[A-Za-z0-9)\]"]\.$/) report("CELL_PERIOD", NR, c)
+          if (ce ~ /[A-Za-z0-9)\]"]; [A-Za-z]/) report("CELL_SEMICOLON", NR, c)
+        }
+        next
+      }
+      # Skip HTML tag lines
+      if (raw ~ /^[[:space:]]*<[A-Za-z\/!]/) next
+      # Top-level list items: short label + fullwidth colon = unindented branch or contrived label
+      if (raw ~ /^[-*] / && match(line, /^[-*] [^：`*[ ]{1,8}：/)) report("LIST_LABEL", NR, raw)
+      # Body text / lists / blockquotes
+      body = line; sub(/^[[:space:]]*(>[[:space:]]*)?([-*+]|[0-9]+\.)?[[:space:]]*/, "", body)
+      if (body ~ /。[[:space:]]*$/) report("PROSE_PERIOD", NR, raw)
+      tmp = body; sub(/。[[:space:]]*$/, "", tmp)
+      if (tmp ~ /。/) report("PROSE_MULTI", NR, raw)
+      # English: no trailing periods, one sentence per line
+      be = en_mask(body)
+      if (be ~ /[A-Za-z0-9)\]"*_]\.[[:space:]]*$/) report("PROSE_PERIOD", NR, raw)
+      te = be; sub(/\.[[:space:]]*$/, "", te)
+      if (te ~ /[a-z0-9)\]"]\. [A-Z]/) report("PROSE_MULTI", NR, raw)
+    }
+    END {
+      s = "SUMMARY"
+      split("PROSE_PERIOD PROSE_MULTI CELL_PERIOD CELL_SEMICOLON LIST_LABEL HEADING_DOT", codes, " ")
+      any = 0
+      for (i = 1; i <= 6; i++) { k = codes[i]; if (cnt[k] > 0) { s = s " " k "=" cnt[k]; any = 1 } }
+      print s
+      if (any) print "__FAIL__"
+    }' "$f")"
+  if printf '%s\n' "$out" | grep -qx '__FAIL__'; then
+    total_fail=$((total_fail + 1))
+    printf '%s\n' "$out" | grep -vx '__FAIL__'
+  else
+    printf '%s\n' "$out"
+  fi
+done <<EOF2
+$files
+EOF2
+
+if [ "$total_fail" -eq 0 ]; then
+  echo "RESULT OK"
+  exit 0
+fi
+echo "RESULT FAIL ($total_fail files have writing violations; see axioms/writing.md for criteria)"
+exit 1

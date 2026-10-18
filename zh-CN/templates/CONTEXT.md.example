@@ -1,0 +1,34 @@
+# Context
+
+## Language
+
+### example-term-1
+
+中文：{固定译名，按需填写}
+{用一句话说明概念是什么}
+{适用范围与容易混淆的边界，按需填写}
+别名：{同一概念的缩写或本业务认可的其他称呼，按需填写}
+_Avoid_: {本业务应避免的称呼及原因，按需填写}
+_对人说_: {面向用户的自然表达，按需填写}
+
+### example-term-2
+
+{用一句话说明概念是什么}
+
+## Relationships
+
+{需要集中说明概念关系时填写}
+- [example-term-1](#example-term-1) {与} [example-term-2](#example-term-2) {的归属、组成或关联关系}
+
+## Example dialogue
+
+{术语在业务交流中容易被误用时填写}
+
+> **开发者：** {使用 [example-term-1](#example-term-1) 与 [example-term-2](#example-term-2) 的业务表述}
+> **业务方：** {区分容易混淆的概念}
+
+## Flagged ambiguities
+
+{某种说法容易指向不同概念时填写}
+
+- 「{容易混淆的说法}」在本业务中指 [example-term-1](#example-term-1)，{与 [example-term-2](#example-term-2) 的区分}

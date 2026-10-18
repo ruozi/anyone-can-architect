@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# aca-config — read/write Anyone Can Architect user config
+#
+# Config file: $ACA_STATE_DIR/config.yaml (default: ~/.aca/config.yaml)
+# Format: single-level YAML (key: value), no nesting.
+#
+# Usage:
+#   aca-config get <key>              # echo value (or empty if not set)
+#   aca-config set <key> <value>      # set or update key
+#
+# Supported keys (current):
+#   lang              en | zh         language of the installed skills
+#
+# (Legacy keys update_check / auto_update are no longer read since update checks moved off the hot path;
+#  get/set still work, but these keys no longer have any effect)
+
+set -euo pipefail
+
+STATE_DIR="${ACA_STATE_DIR:-$HOME/.aca}"
+CONFIG_FILE="$STATE_DIR/config.yaml"
+
+usage() {
+  echo "Usage: aca-config get <key>" >&2
+  echo "       aca-config set <key> <value>" >&2
+  exit 1
+}
+
+cmd="${1:-}"
+key="${2:-}"
+value="${3:-}"
+
+case "$cmd" in
+  get)
+    [ -z "$key" ] && usage
+    [ ! -f "$CONFIG_FILE" ] && exit 0
+    if grep -qE "^${key}: " "$CONFIG_FILE" 2>/dev/null; then
+      sed -nE "s/^${key}: (.*)$/\1/p" "$CONFIG_FILE" | head -1
+    fi
+    ;;
+  set)
+    [ -z "$key" ] && usage
+    [ -z "$value" ] && usage
+    mkdir -p "$STATE_DIR"
+    touch "$CONFIG_FILE"
+    if grep -qE "^${key}: " "$CONFIG_FILE" 2>/dev/null; then
+      tmp=$(mktemp)
+      sed -E "s|^${key}: .*|${key}: ${value}|" "$CONFIG_FILE" > "$tmp"
+      mv "$tmp" "$CONFIG_FILE"
+    else
+      echo "${key}: ${value}" >> "$CONFIG_FILE"
+    fi
+    ;;
+  *)
+    usage
+    ;;
+esac

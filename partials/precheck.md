@@ -1,0 +1,1 @@
+- Run `bash ~/.claude/skills/aca/bin/aca-repo-type-check`: `NEEDS_INIT` → run `/aca-init` first; `PENDING` → stop; read Repo-Type only from the root README footer
