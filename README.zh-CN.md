@@ -12,7 +12,7 @@
 
 <p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
 
-<p align="center"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-8D6E63"> <img alt="Hosts" src="https://img.shields.io/badge/hosts-Claude%20Code%20%7C%20Codex%20%7C%20Cursor%20%7C%20Grok%20%7C%20Antigravity-E8912D"></p>
+<p align="center"><a href="https://www.npmjs.com/package/anyone-can-architect"><img alt="npm version" src="https://img.shields.io/npm/v/anyone-can-architect?color=CB3837"></a> <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-8D6E63"> <img alt="Hosts" src="https://img.shields.io/badge/hosts-Claude%20Code%20%7C%20Codex%20%7C%20Cursor%20%7C%20Grok%20%7C%20Antigravity-E8912D"></p>
 
 ---
 
