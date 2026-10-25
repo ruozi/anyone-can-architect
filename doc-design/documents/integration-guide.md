@@ -48,9 +48,10 @@ Structure outline:
    - Describe artifact acquisition, installation, authentication, and configuration in operating order, and provide a way to confirm completion
    - Explain how to obtain credentials and user-specific values and where to configure them, and read them from configuration in examples
 3. Develop the integration workflow and usage scenarios
-   - Describe when to make calls, the operating order, input sources, results, and failure handling
-   - When callbacks, retries, or repeated operations are involved, explain the handling that integrators must provide
-   - Provide executable minimal examples as needed for the operations, and indicate where partial examples belong in the complete workflow
+   - Integration scenarios that can be expressed in code: center on copy-and-run code, writing out the complete calling order, subscription and unbinding, callback handling, retry or repeated-operation handling, and lifecycle management
+   - Write parameter purposes, calling conditions, and constraints that statements cannot express on their own in adjacent code comments, without commenting on obvious syntax
+   - In body text, write only required operations and completion results outside the code, such as file placement, mounting targets, editor configuration, and external verification results, without restating calls and parameters already expressed in code
+   - Mark where partial code snippets belong in the complete example along with required supporting code, without using undefined helper methods or empty implementations as copy-and-run code
 4. Add debugging and verification instructions, and any required FAQ
    - Define the check steps and pass criteria for the overall integration
    - Provide ways to locate problems and recover based on errors, statuses, and logs available to users, and reference the corresponding content from usage scenarios
@@ -242,8 +243,9 @@ Do not provide the Authorization header or token value
 - [ ] The structure matches the integration type, and usage content is organized by workflow or business scenario
 - [ ] The environment, dependencies, installation, authentication, and configuration are explained in the actual order, with ways to obtain the required information
 - [ ] All capabilities required for each scenario are covered, and applicable conditions, operating steps, completion results, and failure handling are defined
-- [ ] Calling methods match the interface contracts, and responsibilities for callbacks, retries, and repeated operations are stated
-- [ ] Minimal examples can be executed by following the stated steps, and partial examples indicate where they belong in the complete workflow
+- [ ] Calling methods match the interface contracts, scenarios that can be expressed in code center on copy-and-run code, and required wiring, callbacks, unbinding, retries, and repeated operations are implemented in code
+- [ ] Parameter purposes, calling conditions, and constraints that statements cannot express on their own are written in adjacent code comments, and body text does not restate calls and parameters already expressed in code
+- [ ] Examples can be executed by following the stated steps, dependencies and parameter replacement locations are complete, and partial code snippets indicate where they belong in the complete example along with required supporting code
 - [ ] Overall verification has executable actions and observable results, and problems have methods for diagnosis or feedback
 - [ ] The guide matches the actual artifacts, interfaces, and bundled materials, without relying on internal design docs
 - [ ] No actual credential values are present, and user-specific configuration has stated sources and usage locations
