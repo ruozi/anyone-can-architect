@@ -75,7 +75,10 @@ Directory nesting does not require the implementation to use language-level nest
    1. interface
    2. class-design, first defining internal composition and each submodule's responsibility boundaries when submodules exist
    3. Write each submodule according to dependencies between submodules, writing dependencies first and following this same sequence for each submodule
-   4. Check that submodule collaboration in the parent's class-design is consistent with each child's interface
+   4. Review the parent's class-design to verify the parent-child boundary
+      - Submodule calls, input conversions, and result handling in the parent are consistent with each child's interface
+      - The parent does not directly manipulate internal fields of a child or call methods not declared in a child's interface
+      - Data structures, state machines, algorithms, and internal tests belonging to a child are fully taken over by the child and removed from the parent
    5. testcase
    6. README
 
@@ -86,6 +89,7 @@ Directory nesting does not require the implementation to use language-level nest
 - [ ] Modules at every level contain the four fixed files, and each file meets its corresponding doc design
 - [ ] README links to the three docs within the module and to each submodule's README when submodules exist
 - [ ] Each submodule meets the split criteria, and capabilities that do not meet them remain in the parent's class-design
-- [ ] The parent's class-design references child interfaces without repeating child contracts or implementations
+- [ ] The parent's class-design collaborates only through capabilities declared in child interfaces, without directly manipulating internal fields of a child or calling undeclared methods
+- [ ] The parent's class-design does not retain data structures, state machines, algorithms, or child internal tests that belong to a child
 - [ ] All capabilities the parent exposes are declared in the parent's interface
 - [ ] Each level's testcase uses only that level's interface as its black-box boundary, and each test case belongs to only one level

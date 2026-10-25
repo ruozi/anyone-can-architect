@@ -18,8 +18,11 @@ The body consists of "internal mechanisms", "external capabilities", and "intern
 "Internal mechanisms" consist of "internal composition" and shared mechanisms
 
 The first [chapter](../../CONTEXT.md#chapter) of "internal mechanisms" is "internal composition"
-- Without submodules, it lists the module's classes or components, the data this module owns, and the downstream modules or external systems it depends on
-- With submodules, it uses a module table listing submodules, capabilities, and responsibility boundaries, and a relationship table listing collaboration between submodules, with each submodule name linking to its README
+- List the module's classes or components, the data this module owns, and the downstream modules or external systems it depends on
+- When submodules exist, organize this level and direct submodules by the following rules
+  - The composition diagram treats each direct submodule as a single node, expressing this module's structure, direct submodules, and the call and feedback relationships between them
+  - Do not draw classes, state, algorithms, or deeper submodules inside submodules
+  - Use a module table to list direct submodules, capabilities, and responsibility boundaries, linking each submodule name to its README and capabilities to the child interface
 
 Shared mechanisms follow "internal composition", one [chapter](../../CONTEXT.md#chapter) per shared mechanism, and are omitted when there are none
 A shared mechanism must meet both of the following criteria
@@ -36,7 +39,7 @@ Structure outline:
 
 ```text
 "Internal mechanisms"
-## 1 Internal Composition         Classes or components, owned data, and dependencies · module and relationship tables when submodules exist
+## 1 Internal Composition         Classes or components, owned data, and dependencies · direct submodule table when submodules exist
 ## 2 <shared mechanism>           As needed, only when it meets the shared mechanism criteria
 …
 "External capabilities"
@@ -134,7 +137,7 @@ Paired with the order module in the interface example, the three "external capab
 
 ## 5 Checklist
 
-- [ ] The first chapter is "internal composition"; when submodules exist, it matches the submodule directories and only links submodule capabilities to the child interface
+- [ ] The first chapter is "internal composition"; when submodules exist, it expands only this level and direct submodules, matches the direct submodule directories, and only links submodule capabilities to the child interface
 - [ ] Every shared mechanism chapter meets the shared mechanism criteria and can name at least two external capabilities that use it
 - [ ] The [chapters](../../CONTEXT.md#chapter) and [sections](../../CONTEXT.md#section) for "external capabilities" correspond one-to-one with interface, follow "internal mechanisms", and have consecutive numbering
 - [ ] "Internal mechanisms" and each "external capability" use drill-down to reach the leaves, leaving only one possible implementation of the module

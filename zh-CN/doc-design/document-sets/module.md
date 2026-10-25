@@ -75,7 +75,10 @@ docs/design/module-order/
    1. interface
    2. class-design，有子模块时先确定内部组成与各子模块的职责边界
    3. 按子模块之间的依赖关系编写各子模块，被依赖的子模块先编写，每个子模块同样按本步骤的顺序编写
-   4. 核对父级 class-design 的子模块协作与各子级 interface 一致
+   4. 回查父级 class-design，核对父子边界
+      - 父级的子模块调用、输入转换与结果处理与各子级 interface 一致
+      - 父级不直接操作子级内部字段，不调用子级 interface 未声明的方法
+      - 归属子级的数据结构、状态机、算法与内部测试已在子级完整承接，并从父级移除
    5. testcase
    6. README
 
@@ -86,6 +89,7 @@ docs/design/module-order/
 - [ ] 每层模块包含固定四个文件，各文件满足对应文档设计
 - [ ] README 链接模块内三篇文档，有子模块时链接各子模块 README
 - [ ] 每个子模块满足拆分条件，不满足的能力留在父级 class-design
-- [ ] 父级 class-design 引用子级 interface，没有复述子级的契约与实现
+- [ ] 父级 class-design 只通过子级 interface 已声明的能力协作，没有直接操作子级内部字段或调用未声明的方法
+- [ ] 父级 class-design 没有保留已归属子级的数据结构、状态机、算法与子级内部测试
 - [ ] 父级对外提供的能力都在父级 interface 中声明
 - [ ] 每层 testcase 只以本层 interface 为黑盒边界，同一测试用例只归属一个层级
