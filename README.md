@@ -106,5 +106,5 @@ Run `bash tests/run-tests.sh` before opening a pull request
 
 ---
 
-> 📦 **Anyone Can Architect v0.2.0**
-> 🤝 Powered by [Anyone Can Architect](https://github.com/ruozi/anyone-can-architect) v0.2.0 · Repo-Type: `guideline`
+> 📦 **Anyone Can Architect v0.3.0**
+> 🤝 Powered by [Anyone Can Architect](https://github.com/ruozi/anyone-can-architect) v0.3.0 · Repo-Type: `guideline`
