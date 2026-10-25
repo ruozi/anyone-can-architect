@@ -35,7 +35,8 @@ flowchart LR
     Brownfield --> Design
     Design --> Implement["/aca-implement<br>build code from the docs"]
     Implement --> Review["/aca-review<br>check against the design"]
-    Review --> Release["/aca-release<br>merge and tag"]
+    Review --> Test["/aca-test<br>run minimal tests"]
+    Test --> Release["/aca-release<br>merge and tag"]
 ```
 
 ---
@@ -84,6 +85,7 @@ In Codex, type `$` instead of `/`, for example `$aca`
 | `/aca-walkthrough` | Walks you through the design docs in plain language and fixes issues on the spot |
 | `/aca-implement` | Builds the code and tests from the design docs |
 | `/aca-review` | Reviews the design docs or the code in the current scope |
+| `/aca-test` | Selects and runs minimal tests based on the implementation or change blast radius |
 | `/aca-repo-audit` | Checks the whole repo for broken links, contradictions and drift between docs and code |
 | `/aca-release` | Merges the verified version into main and tags it |
 | `/aca-feedback` | Files a GitHub issue when a rule does not fit your project |

@@ -43,8 +43,9 @@ flowchart TD
 | `/aca-specify` | Reason through new requirements or improve existing designs, then proceed to Design after confirming the solution |
 | `/aca-design` | Write and check design docs within the current scope, then determine the next scope or complete the overall closeout |
 | `/aca-walkthrough` | Walk through design docs in business language, confirm design decisions unit by unit, and correct identified issues on the spot after confirmation |
-| `/aca-review` | Determine the review subject and scope, review the design or check implementation compliance with the design, without modifying the docs or code under review |
-| `/aca-implement` | Plan the file structure based on the design, then implement and verify code and tests according to module dependencies |
+| `/aca-review` | Determine the review subject and scope, statically review the design or code and test implementation, without modifying the docs or code under review or running code |
+| `/aca-implement` | Plan the file structure based on the design, then write production code and test code according to module dependencies |
+| `/aca-test` | Select and run minimal tests based on the current implementation scope or the design boundary crossed by changes, testing only without modifying files |
 | `/aca-repo-audit` | Check repository documentation and verify the implementation as needed, with read-only access and no changes |
 | `/aca-release` | Close out according to the repository release workflow, merge into main, and lock in an annotated Tag |
 | `/aca-feedback` | Collect deviations from governance rules and submit an Issue after explicit authorization |

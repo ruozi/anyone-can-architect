@@ -35,7 +35,8 @@ flowchart LR
     Brownfield --> Design
     Design --> Implement["/aca-implement<br>按文档构建代码"]
     Implement --> Review["/aca-review<br>对照设计审查"]
-    Review --> Release["/aca-release<br>合并并打 Tag"]
+    Review --> Test["/aca-test<br>运行最小化测试"]
+    Test --> Release["/aca-release<br>合并并打 Tag"]
 ```
 
 ---
@@ -85,6 +86,7 @@ npx anyone-can-architect install --lang zh
 | `/aca-walkthrough` | 用业务语言带你走读设计文档，当场修正问题 |
 | `/aca-implement` | 按设计文档构建代码与测试 |
 | `/aca-review` | 审查当前范围的设计文档或代码 |
+| `/aca-test` | 按实现或改动影响范围选取并运行最小化测试 |
 | `/aca-repo-audit` | 检查全仓的断链、矛盾及文档与代码的偏移 |
 | `/aca-release` | 将已验证的版本合入 main 并打 Tag |
 | `/aca-feedback` | 规则不适合你的项目时，提交 GitHub Issue |

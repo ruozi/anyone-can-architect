@@ -199,9 +199,9 @@ If execution cannot continue in Chapters 4 through 7, report completed facts, th
    Cross-check that the Anyone Can Architect footer matches the current Anyone Can Architect version, immediately follows the repository version line, and is the last line
    Cross-check that the final commit contains the complete design, implementation, and tests for this scope
 3. Complete final verification
-   Complete the verification required by the repository release workflow on the final commit
+   Complete the verification required by the repository release workflow and the `/aca-test` test scope on the final commit
    Record verification results and the corresponding commit
-   When reusing existing results, state which reuse conditions are met and the basis for their correspondence to the final commit
+   When reusing existing `/aca-test` or verification results, state which reuse conditions are met and the basis for their correspondence to the final commit
    If artifacts are involved, cross-check their traceability to this commit
    Verification artifacts cannot replace evidence of completed delivery
 4. Determine whether release locking is allowed
@@ -366,7 +366,8 @@ Select one immediately executable action based on the incomplete items
 | Execution conditions are missing | Meet the conditions, then check the status against [release preparation](#3-release-preparation) and resume |
 | The design solution still needs reasoning | `/aca-specify` Reason through the solution |
 | The revision solution is clear and only doc changes are needed | `/aca-design` Revise the docs |
-| Implementation issues | `/aca-implement` Fix and verify |
+| Implementation issues | `/aca-implement` Fix code or tests |
+| Tests or final verification incomplete | `/aca-test` Run verification, then resume the release |
 | Merge conflicts | Resolve and commit the conflicts, then rerun the [pre-merge audit](#43-pre-merge-audit) |
 | Push, cleanup, or announcement is still incomplete | Resume from the corresponding incomplete step |
 | Everything is complete and no follow-up items remain | Report that there are no pending tasks |

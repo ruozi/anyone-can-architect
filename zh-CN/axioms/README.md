@@ -8,4 +8,4 @@
 | 行文 | [writing.md](writing.md) | design「文档编写」章<br>walkthrough / review / repo-audit 正文<br>每篇文档设计头部 | 文档结构、概念与引用、章节、行与表格、字符 ——「怎么写」 |
 | 完整性（Boil the Ocean） | [boil-the-ocean.md](boil-the-ocean.md) | specify「方案设计」章 | 能做到 100% 就不做 80% |
 
-skill 级公理只进有设计边界的 skill，implement / release / feedback 是纯执行，不注入
+skill 级公理只进有设计边界的 skill，implement / test / release / feedback 是纯执行，不注入

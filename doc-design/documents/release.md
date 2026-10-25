@@ -11,7 +11,7 @@ Chapter 2 presents the release process in the actual order used by this reposito
 Each step defines the execution method, pass criteria, failure handling, and recovery point
 Use [drill-down](../../skills/references/drill-down.md) for complex stages based on their actual content
 
-Arrange verification steps as needed by the repository, including tests, builds, verification on real platforms, and other necessary operations
+Arrange verification steps as needed by the repository, including tests, builds, verification on real platforms, and other necessary operations, either running full verification uniformly or defining tiered verification by the design boundary crossed and dependency blast radius
 Include the release summary in the step that locks the Tag, and expand its format under that step when a detailed definition is needed
 Add a separate chapter for release announcements as needed, defining triggers, content sources, channels, and retries after failure
 
@@ -34,7 +34,8 @@ Structure outline:
 2. Design the release process for this repository
    - Arrange operations such as closing out version records, verification, and merging according to dependencies
    - Define commands or operating procedures, pass criteria, failure handling, and a recovery point for each step
-   - When verification involves real platforms, define the required environment, data, and result evaluation criteria
+   - When verification is tiered by blast radius, define the test scopes for intra-unit changes, cross-module contract changes, and global foundation changes, along with periodic full verification and failure handling
+   - When verification involves real platforms or model evaluation, define the required environment, data, and result evaluation criteria
 3. Define the steps to lock in the version
    - Check that the final commit includes the content for this version, version records are consistent, and verification results apply to this commit
    - Confirm that the version is merged into main through the merge chain, and define the source, format, and validation method for the release summary
@@ -155,7 +156,8 @@ After fixing the issue, rerun the announcement job with the same Tag, without re
 - [ ] Release prerequisites define the version source, version records, merge chain, target Tag, and execution requirements
 - [ ] The process covers all necessary operations for this repository from pre-release verification to merging into main and locking the Tag
 - [ ] Each step has an execution method, pass criteria, failure handling, and a recovery point
-- [ ] The verification environment and result evaluation criteria are defined, and verification results correspond to the final locked commit
+- [ ] The verification environment, commands, and result evaluation criteria are defined, and verification results correspond to the final locked commit
+- [ ] When tiered verification is used, the test sets for each blast radius, conditions for escalating to full verification, and periodic full verification are defined
 - [ ] Prerequisites and results connect across steps, and resuming execution does not repeat non-reentrant operations
 - [ ] Version records are consistent, and the summary source, format, and validation method are defined
 - [ ] The remote annotated Tag points to the verified final main commit, and the version, commit, and verification results are traceable

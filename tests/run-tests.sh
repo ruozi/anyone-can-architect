@@ -1006,6 +1006,59 @@ else
   FAIL=$((FAIL+1))
 fi
 
+# ════════════════ Parent–child boundary recheck & single-level composition diagram (#513)════════════════
+
+SUBMOD_BOUNDARY_OK=1
+grep -qF '组成图将每个直接子模块作为一个整体节点' "$ZH/doc-design/documents/class-design.md" || SUBMOD_BOUNDARY_OK=0
+grep -qF '不绘制子模块内部的类、状态、算法与更深层子模块' "$ZH/doc-design/documents/class-design.md" || SUBMOD_BOUNDARY_OK=0
+grep -qF '只展开本层与直接子模块，与直接子模块目录一致' "$ZH/doc-design/documents/class-design.md" || SUBMOD_BOUNDARY_OK=0
+grep -qF '回查父级 class-design，核对父子边界' "$ZH/doc-design/document-sets/module.md" || SUBMOD_BOUNDARY_OK=0
+grep -qF '父级不直接操作子级内部字段，不调用子级 interface 未声明的方法' "$ZH/doc-design/document-sets/module.md" || SUBMOD_BOUNDARY_OK=0
+grep -qF '父级 class-design 没有保留已归属子级的数据结构、状态机、算法与子级内部测试' "$ZH/doc-design/document-sets/module.md" || SUBMOD_BOUNDARY_OK=0
+if [ "$SUBMOD_BOUNDARY_OK" -eq 1 ]; then
+  echo "ok - module: parent class-design single-level composition and parent–child boundary recheck (#513)"; PASS=$((PASS+1))
+else
+  echo "FAIL - module: parent class-design single-level composition or parent–child boundary recheck missing (#513)"; FAIL=$((FAIL+1))
+fi
+
+# ════════════════ Code-first integration-guide (#514)════════════════
+
+IG_OK=1
+IG_DOC="$ZH/doc-design/documents/integration-guide.md"
+grep -qF '可用代码表达的接入场景：以可复制运行的代码为主体' "$IG_DOC" || IG_OK=0
+grep -qF '参数用途、调用条件与语句自身无法表达的约束就近写入代码注释' "$IG_DOC" || IG_OK=0
+grep -qF '正文只写代码之外必需的操作与完成结果' "$IG_DOC" || IG_OK=0
+grep -qF '正文没有复述代码已表达的调用与参数' "$IG_DOC" || IG_OK=0
+if [ "$IG_OK" -eq 1 ]; then
+  echo "ok - integration-guide: code-first expression and inline comments without prose duplication (#514)"; PASS=$((PASS+1))
+else
+  echo "FAIL - integration-guide: code-first expression or checklist rules missing (#514)"; FAIL=$((FAIL+1))
+fi
+
+# ════════════════ Independent /aca-test skill & blast-radius verification (#515)════════════════
+
+ACA_TEST_OK=1
+ACA_TEST_SKILL="$ZH/skills/aca-test/SKILL.md.tmpl"
+[ -f "$ACA_TEST_SKILL" ] || ACA_TEST_OK=0
+grep -qF 'name: aca-test' "$ACA_TEST_SKILL" || ACA_TEST_OK=0
+grep -qF '按变更突破的设计边界选取最小化测试集' "$ACA_TEST_SKILL" || ACA_TEST_OK=0
+grep -qF '只运行测试并核实结果，不修改设计文档、生产代码或测试代码' "$ACA_TEST_SKILL" || ACA_TEST_OK=0
+grep -qF '在低并发隔离条件下单独重跑失败项核实' "$ACA_TEST_SKILL" || ACA_TEST_OK=0
+grep -qF 'implement / test / release / feedback 是纯执行，不注入' "$ZH/axioms/README.md" || ACA_TEST_OK=0
+grep -qF '/aca-test' "$ZH/meta-skills/aca/SKILL.md.tmpl" || ACA_TEST_OK=0
+grep -qF '不运行测试' "$ZH/skills/aca-implement/SKILL.md.tmpl" || ACA_TEST_OK=0
+grep -qF '测试运行统一交给 `/aca-test`' "$ZH/skills/aca-implement/SKILL.md.tmpl" || ACA_TEST_OK=0
+grep -qF '不运行受审代码与测试' "$ZH/skills/aca-review/SKILL.md.tmpl" || ACA_TEST_OK=0
+grep -qF '运行验证在审查通过后由 `/aca-test` 执行' "$ZH/skills/aca-review/SKILL.md.tmpl" || ACA_TEST_OK=0
+grep -qF '按 `/aca-test` 的边界规则与仓库 `release` 文档，确定本次范围所需的测试与构建命令' "$ZH/skills/aca-repo-audit/SKILL.md.tmpl" || ACA_TEST_OK=0
+grep -qF '可统一执行全量验证，或按改动突破的设计边界与依赖范围分级定义' "$ZH/doc-design/documents/release.md" || ACA_TEST_OK=0
+grep -qF '包含子项时每步以加粗短语开头表达目的' "$ZH/axioms/writing.md" || ACA_TEST_OK=0
+if [ "$ACA_TEST_OK" -eq 1 ]; then
+  echo "ok - aca-test: independent test skill, blast-radius scoping, implement/review separation and bold step headers (#515)"; PASS=$((PASS+1))
+else
+  echo "FAIL - aca-test: skill, routing, implement/review separation or release tiered verification missing (#515)"; FAIL=$((FAIL+1))
+fi
+
 # ════════════════ Summary ════════════════
 
 echo "───────────────────────────"

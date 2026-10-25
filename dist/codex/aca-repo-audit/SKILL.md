@@ -34,7 +34,7 @@ Use `/aca-review` when you need to judge whether business goals and design solut
 - Present the whole first, then expand on the details, see the [Pyramid Principle](~/.codex/skills/aca/SSOT.md#2-structure)
 - When stating a judgment, give the conclusion first, then the supporting evidence
 - Merge heading levels that add no information
-- Use numbered lists for items with a sequence or priority, and indent multiple attributes under each item
+- Use numbered lists for items with a sequence or priority; when a step contains sub-items, start the step with a bold phrase stating its purpose and indent specific operations and conditional branches under it
 - Use tables only for content with multiple rows of the same structure, more than two attributes per row, and no sequence between rows
 - Write list items as complete sentences
 - When an item has branches, indent the branches under that item
@@ -181,16 +181,17 @@ When an implementation audit is included, cross-check all design items in scope 
 
 ### 5.2 Runtime Verification
 
-1. Determine verification requirements
-   Read the full test and build commands specified by the repository
+1. **Determine verification requirements**
+   Determine the test and build commands required for the current scope according to the boundary rules in `/aca-test` and the repository `release` doc
+   Run full tests and builds by default when the repository does not specify tiered verification
    Check the required environment, configuration, and fixtures
-2. Run verification or reuse its results
-   Reuse existing results if they cover the required verification and the content under review, tests, fixtures, configuration, dependency environment, and commands have not changed
+2. **Run verification or reuse its results**
+   Reuse existing `/aca-test` or build results if they cover the required scope and the commit under review, tests, fixtures, configuration, dependency environment, and commands have not changed
    State the original verification results and the basis for reuse in the report
-   Run the corresponding verification in an isolated environment if the reuse conditions are not met
+   Run the required tests and builds in an isolated environment following the execution rules of `/aca-test` if the reuse conditions are not met
    Static reading cannot replace verification by execution
    Do not modify project source code, design docs, or commit history during verification
-3. Record results and handle exceptions
+3. **Record results and handle exceptions**
    Record the results and supporting evidence when verification passes
    Verify diagnostics and record confirmed issues when verification fails
    Mark the corresponding verification as incomplete and explain why if the environment is unavailable or execution is not possible
@@ -223,7 +224,7 @@ When an implementation audit is included, cross-check all design items in scope 
 | Incomplete | Pass conditions are not met, and no confirmed must fix items exist |
 
 Required checks include reading documentation, mechanical checks, and content checks in the current scope
-When an implementation audit is included, they also include all consistency cross-checks, full tests, and builds
+When an implementation audit is included, they also include all consistency cross-checks and the tests and builds required for the current scope
 When both must fix items and incomplete checks exist, set the verdict to action required and list the incomplete items
 Optional trim does not affect a pass
 
@@ -273,7 +274,8 @@ Choose one immediately executable action based on the nature of the issues and t
 | Verification prerequisites are missing | Meet the prerequisites, then continue this audit through `/aca-repo-audit` |
 | The solution still needs reasoning | Use `/aca-specify` to reason through the solution |
 | The revised solution is clear and only docs need changes | Use `/aca-design` to revise the docs |
-| Implementation deviates | Use `/aca-implement` to fix and verify |
+| Implementation deviates | `/aca-implement` Fix code or tests |
+| Tests or builds incomplete | `/aca-test` Run verification |
 | Audit passes | Return to the caller and continue with the confirmed arrangements |
 
 Audit the affected scope again after the issues are corrected

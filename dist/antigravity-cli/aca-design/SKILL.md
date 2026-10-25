@@ -22,7 +22,7 @@ Change only documentation, not code
 - Present the whole first, then expand on the details, see the [Pyramid Principle](~/.gemini/antigravity-cli/skills/aca/SSOT.md#2-structure)
 - When stating a judgment, give the conclusion first, then the supporting evidence
 - Merge heading levels that add no information
-- Use numbered lists for items with a sequence or priority, and indent multiple attributes under each item
+- Use numbered lists for items with a sequence or priority; when a step contains sub-items, start the step with a bold phrase stating its purpose and indent specific operations and conditional branches under it
 - Use tables only for content with multiple rows of the same structure, more than two attributes per row, and no sequence between rows
 - Write list items as complete sentences
 - When an item has branches, indent the branches under that item
