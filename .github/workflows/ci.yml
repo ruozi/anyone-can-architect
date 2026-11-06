@@ -16,6 +16,7 @@ jobs:
         run: |
           bash scripts/build-skills.sh --lang en
           bash scripts/build-skills.sh --lang zh
-          git diff --exit-code
+          git status --porcelain
+          test -z "$(git status --porcelain)"
       - name: Tests
         run: bash tests/run-tests.sh
