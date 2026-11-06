@@ -14,11 +14,19 @@
 | --- | --- | --- |
 | 接口定义 | 始终必需 | [§2.1](#21-接口定义) |
 | 数据结构说明 | 始终必需 | [§2.2](#22-数据结构说明) |
-| 业务解释 | 原生文档机制无法承载时必需 | [§2.3](#23-业务解释) |
+| 业务解释 | 声明及关联说明无法承载时必需 | [§2.3](#23-业务解释) |
 
 ### 2.1 接口定义
 
-使用模块方法的原始声明或网络接口的接口描述规范
+按调用方使用的语言或协议选择表达方式，常见接口如下
+
+| 接口对象 | 表达方式 | 契约内容 |
+| --- | --- | --- |
+| 语言方法 | 对应语言的原始声明与文档机制 | 方法签名、参数、返回与异常 |
+| HTTP 接口 | 所选接口描述规范，如 OpenAPI | HTTP 方法、路径、鉴权、请求与响应 |
+| 事件接口 | 所选协议的事件契约 | 连接入口、事件名、发送方向、消息结构与确认方式 |
+
+其他协议按所选协议的接口描述方式定义
 在声明关联的文档说明中写清调用目的、业务能力、结果交付方式、异常及触发条件
 按需说明顺序、范围、空结果、失败、超时及业务副作用
 接口具有幂等性时，说明重复调用的业务含义
@@ -28,7 +36,8 @@
 
 ### 2.2 数据结构说明
 
-使用类型声明及其文档注释、文档字符串或描述字段，已有定义直接引用
+使用对应语言的类型声明或所选数据描述规范，说明写在文档注释、文档字符串或描述字段中
+已有定义直接引用
 被依赖的类型在前，引用它的类型在后
 在参数、返回类型与字段声明处说明业务含义、取值约束与适用的默认值
 类型、必填性、枚举等可声明的约束直接写入声明，各类结果的业务含义写入对应的文档说明
@@ -38,7 +47,7 @@
 
 ### 2.3 业务解释
 
-使用代码块外的文字或表格，仅补充原生文档机制未表达的业务含义与约束
+使用代码块外的文字或表格，仅补充声明及关联说明未表达的业务含义与约束
 每条业务解释标明对应的接口、字段或结果
 
 ## 3 模块方法示例：取消订单（TypeScript）
@@ -178,9 +187,119 @@ export declare function cancelOrder(
 }
 ```
 
-## 5 检查条件
+## 5 Socket.IO 事件示例：取消订单与状态通知
 
-### 5.1 接口契约混入实现机制
+采用 Socket.IO 4.x，事件映射按[官方类型声明](../../SSOT.md#6-api-设计)表达
+载荷使用 zod [数据契约](schema.md#21-契约声明)，从校验声明派生事件参数类型
+
+### 5.1 连接与认证
+
+以下约定由本节两个事件共用
+
+| 项目 | 约定 |
+| --- | --- |
+| 服务地址 | `https://api.example.com` |
+| 连接 path | `/socket.io/` |
+| namespace | `/orders` |
+| 连接认证 | `auth.token` 携带订单访问令牌，结构见 `OrderAuthSchema` |
+| 认证失败 | 拒绝连接，客户端收到 `connect_error`，`message` 为 `UNAUTHORIZED` |
+
+### 5.2 消息数据
+
+```typescript
+import { z } from "zod";
+
+/** 订单唯一标识，不能为空或仅含空白字符 */
+const OrderIdSchema = z.string().regex(/\S/);
+
+export const OrderAuthSchema = z.object({
+  /** 已取得的订单访问令牌 */
+  token: z.string().min(1),
+}).strict();
+
+export const OrderSchema = z.object({
+  id: OrderIdSchema,
+  /** 订单当前业务状态 */
+  status: z.enum([
+    "pending_payment", // 待付款
+    "paid", // 已付款
+    "cancelled", // 已取消
+  ]),
+}).strict();
+
+export const CancelRequestSchema = z.object({
+  /** 要申请取消的订单 */
+  orderId: OrderIdSchema,
+}).strict();
+
+const CancelledOrderSchema = OrderSchema.extend({ status: z.literal("cancelled") });
+const PaidOrderSchema = OrderSchema.extend({ status: z.literal("paid") });
+
+export const CancelAckSchema = z.discriminatedUnion("outcome", [
+  // 本次取消已完成，返回取消后的订单
+  z.object({ outcome: z.literal("cancelled"), order: CancelledOrderSchema }).strict(),
+  // 此前已取消，返回当前订单
+  z.object({ outcome: z.literal("already_cancelled"), order: CancelledOrderSchema }).strict(),
+  // 订单已付款，返回当前订单
+  z.object({ outcome: z.literal("not_allowed"), order: PaidOrderSchema }).strict(),
+  // 指定订单不存在
+  z.object({ outcome: z.literal("not_found") }).strict(),
+  // 请求不符合 CancelRequestSchema
+  z.object({ outcome: z.literal("invalid_request") }).strict(),
+  // 当前身份没有操作该订单的权限
+  z.object({ outcome: z.literal("forbidden") }).strict(),
+  // 本次处理未能确认取消结果
+  z.object({ outcome: z.literal("failed") }).strict(),
+]);
+
+/** 客户端已收到本次订单状态通知 */
+export const StatusAckSchema = z.object({
+  outcome: z.literal("received"),
+}).strict();
+
+export type Order = z.infer<typeof OrderSchema>;
+export type CancelRequest = z.infer<typeof CancelRequestSchema>;
+export type CancelAck = z.infer<typeof CancelAckSchema>;
+export type StatusAck = z.infer<typeof StatusAckSchema>;
+```
+
+### 5.3 分方向事件声明
+
+以下声明与[消息数据](#52-消息数据)合并为同一个 TypeScript 文件
+
+```typescript
+import type { Socket } from "socket.io-client";
+
+export interface ClientToServerEvents {
+  /**
+   * 客户端向服务端申请取消订单
+   * 订单须属于当前身份的可操作范围
+   * @param request 取消请求，按 CancelRequestSchema 校验
+   * @param ack 交付本次取消的业务结果，按 CancelAckSchema 校验
+   * @remarks 5 秒未收到确认或连接中断时，可重发同一 orderId；
+   * 已取消的订单返回 already_cancelled，不重复产生取消效果
+   */
+  "order.cancel": (request: CancelRequest, ack: (result: CancelAck) => void) => void;
+}
+
+export interface ServerToClientEvents {
+  /**
+   * 服务端向客户端推送当前身份可访问订单的最新状态
+   * @param order 订单状态，按 OrderSchema 校验
+   * @param ack 客户端确认收到本次通知，按 StatusAckSchema 校验
+   * @remarks 服务端等待确认 5 秒，本例超时后不重发该通知；
+   * 重连后服务端推送当前可访问订单的最新状态
+   */
+  "order.status": (order: Order, ack: (result: StatusAck) => void) => void;
+}
+
+/** 客户端接收 ServerToClientEvents，发送 ClientToServerEvents */
+export type OrderSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+```
+
+## 6 检查条件
+
+### 6.1 接口契约混入实现机制
 
 - [ ] 能力行为不变、内部实现更换后，接口描述仍成立
 - [ ] 实现机制未替代调用方可验证的行为约束
@@ -193,10 +312,10 @@ export declare function cancelOrder(
 | 并行查询库存与物流，超时取消在途请求 | 超时时返回已查到的信息，未查到的部分标记为超时 |
 | 查询走只读副本，不参与事务 | 查询不会修改订单 |
 
-### 5.2 说明与声明分离
+### 6.2 说明与声明分离
 
-- [ ] 接口与数据结构均有声明及说明，优先使用目标技术栈的原生文档机制
-- [ ] 独立业务解释仅补充原生文档机制无法承载的内容，且能定位对应声明
+- [ ] 接口与数据结构按调用方使用的语言或协议声明，说明写在对应文档机制或描述字段中
+- [ ] 独立业务解释仅补充声明及关联说明无法承载的内容，且能定位对应声明
 
 **反例**
 
@@ -204,9 +323,11 @@ export declare function cancelOrder(
 
 调用方必须在声明与表格之间对照，接口契约未在声明处完整表达
 
-### 5.3 接口定义不规范或类型顺序不符
+### 6.3 接口定义不规范或类型顺序不符
 
 - [ ] 模块方法使用对应语言的原始声明，网络接口按所选接口描述规范定义
+- [ ] 网络接口的连接入口可定位，事件契约明确事件名与发送方向
+- [ ] 采用确认机制时，确认结果的业务含义明确
 - [ ] 数据结构使用对应语言的类型声明或所选接口描述规范定义
 - [ ] 数据结构声明中，被依赖的类型在前，引用它的类型在后
 
@@ -232,7 +353,7 @@ export declare function cancelOrder(
 
 该样例未定义字段是否必填，也未定义 `outcome` 的完整允许取值
 
-### 5.4 数据结构说明不完整
+### 6.4 数据结构说明不完整
 
 - [ ] 每个输入、输出及其数据字段均有业务含义、取值约束与适用的默认值说明
 - [ ] 沿类型依赖递归说明，直至所用语言或描述规范的基本数据类型
@@ -250,7 +371,7 @@ export interface OrderSummary {
 
 既没有给出 `OrderStatus` 的定义与取值含义，也没有提供具体引用位置，无法继续查到完整说明
 
-### 5.5 接口能力或输出含义不清
+### 6.5 接口能力或输出含义不清
 
 - [ ] 说明调用目的、接口提供的业务能力，以及已约定的各类输出结果的业务含义与交付方式
 - [ ] 适用的顺序、范围、空结果、失败、超时及业务副作用均有明确约定
@@ -265,9 +386,9 @@ export declare function cancelOrder(orderId: string): Promise<CancelOrderResult>
 
 没有说明重复调用、订单不存在、订单已付款时各自得到什么结果，调用方无法据此处理任何一种非正常情况
 
-### 5.6 文字复述了声明已表达的内容
+### 6.6 文字复述了声明已表达的内容
 
-- [ ] 原生文档说明补充业务含义与约束，不重复声明已经明确的类型、只读性等信息
+- [ ] 声明关联的说明补充业务含义与约束，不重复声明已经明确的类型、只读性等信息
 
 **反例**
 

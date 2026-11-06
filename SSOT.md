@@ -32,6 +32,11 @@
 
 - [RFC 9110 (HTTP Semantics)](https://www.rfc-editor.org/rfc/rfc9110): Defines HTTP semantics, including methods, status codes, fields, safety, and idempotency
 - [OWASP API Security Top 10](https://owasp.org/API-Security/): Summarizes common API security risks, including authorization, authentication, resource consumption, and configuration issues
+- [Socket.IO Event Types](https://socket.io/docs/v4/typescript/): Defines how to declare client and server events by direction, with type declarations and runtime validation taking separate responsibilities
+- [Socket.IO Events and Acknowledgements](https://socket.io/docs/v4/emitting-events/): Defines bidirectional events, acknowledgements, and timeouts
+- [Socket.IO Client Options](https://socket.io/docs/v4/client-options/) and [Namespaces](https://socket.io/docs/v4/namespaces/): Define the connection path, namespaces, and how clients connect
+- [Socket.IO Connection Authentication](https://socket.io/docs/v4/middlewares/): Defines how auth credentials are passed and how connection rejections are reported
+- [Socket.IO Delivery Guarantees](https://socket.io/docs/v4/delivery-guarantees/): Defines the default message delivery guarantees and where the application must add its own guarantees
 
 ## 7 Platforms and Tools
 

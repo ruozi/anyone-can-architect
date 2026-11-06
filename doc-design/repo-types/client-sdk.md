@@ -46,7 +46,7 @@ Govern only the SDK itself, and integrate required backend capabilities as exter
 ```
 
 `user-guide/` guides product users in integrating or using the product
-`ops-guide/` guides operations or data platform users in data collection, analysis and assessment, operational actions, and verification of action results
+`ops-guide/` gives operations or data platform users guidance on data collection, analysis and assessment, or operational actions, as this project needs
 Guides in `user-guide/` follow the writing guidance in [integration-guide](../documents/integration-guide.md) or [user-manual](../documents/user-manual.md), depending on how the product is used
 Organize `ops-guide/` according to the [ops-guide](../document-sets/ops-guide.md) document set
 
@@ -64,7 +64,7 @@ Organize `ops-guide/` according to the [ops-guide](../document-sets/ops-guide.md
 | `instrumentation.md` | Always required | [instrumentation](../documents/instrumentation.md) |
 | `interface.md` | Always required | [interface](../documents/interface.md) |
 | `module-<id>/` document set | The SDK contains multiple business modules | [module](../document-sets/module.md) |
-| `ops-guide/` document set | Operations or data platform users need guidance on data collection, analysis and assessment, or operational actions | [ops-guide](../document-sets/ops-guide.md) |
+| `ops-guide/` document set | This project needs to give operations or data platform users guidance on data collection, analysis and assessment, or operational actions | [ops-guide](../document-sets/ops-guide.md) |
 | `release.md` | Versions need to be released | [release](../documents/release.md) |
 | `security.md` | Credentials, user data, network transmission, or permissions are involved | [security](../documents/security.md) |
 | `testcase.md` | Always required | [testcase](../documents/testcase.md) |
@@ -143,7 +143,7 @@ Organize separate integration guides for SDK callers and backend interface calle
 Follow the required conditions in each side's repo-type spec
 Split operations guides into separate docs by collection, analysis, and action responsibilities
 Organize each doc according to the [ops-guide](../document-sets/ops-guide.md) document set and the corresponding doc design
-When an operational goal involves both sides, the three guides reference the contracts, data, and security designs of the corresponding side
+When an operational goal involves both sides, the selected guides reference the contracts, data, and security designs of the corresponding side
 Use cross-document references to connect data collection, analysis and assessment, operational actions, and verification of results
 Define shared methods and procedures in one place, and reference them from other guides
 

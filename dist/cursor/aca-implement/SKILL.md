@@ -55,6 +55,8 @@ Preserve existing changes outside the scope of this implementation
    - List deliverables and their completion criteria based on the confirmed design and implementation scope
 2. **Compile the code and test change list**
    - Compare delivery requirements with existing code and tests, and list what to reuse, modify, add, or remove
+   - Correct or remove outdated or wrong test cases and fixtures according to the confirmed design
+   - When changing test expectations, base the change on the confirmed design or a verified test error
 3. **Orchestrate the corresponding test scope**
    - List the test cases and fixtures to write or update in this run based on the black-box and white-box test designs
    - Record the units under test and test case scope corresponding to the current implementation scope for direct execution by `/aca-test`
@@ -142,12 +144,16 @@ Preserve existing changes outside the scope of this implementation
 
 ## 6 Output
 
-When all completion criteria for the current scope are satisfied, mark the goal and task status as complete
-If incomplete, report remaining work, reasons for blockers, and actions to resume
-After this implementation is complete, use `/aca-review` to run an implementation review on this scope
-Provide Review and subsequent `/aca-test` with the overall goal, corresponding design, implementation scope, orchestrated test scope, and comparison baseline
-Identify the commits and uncommitted changes under review
-Use the following format for the final report, filling in the title and results according to the actual status
+1. **Update the task status**
+   - All completion criteria for the current scope are satisfied: mark the goal and task status as complete
+   - Completion criteria are not satisfied: report remaining work, reasons for blockers, and actions to resume
+2. **Check for module and code structure changes and determine the next step**
+   - Check whether the changes are cross-module or change a module's overall code structure (module structure, overall code distribution, function construction)
+   - Cross-module or the module's overall code structure changed: use `/aca-review` to run an implementation review on this scope, then go to `/aca-test` after the review passes
+   - Only inside a module, with no change to the module's overall code structure (such as internal module logic, local function implementation, or test details): skip implementation review and go directly to `/aca-test`
+   - Provide the following `/aca-review` or `/aca-test` with the overall goal, corresponding design, implementation scope, orchestrated test scope, and comparison baseline, and identify the commits and uncommitted changes in this run
+3. **Output the implementation report**
+   Use the following format for the final report, filling in the title and results according to the actual status
 
 ```markdown
 # 🛠️ Implement: <complete / incomplete>
@@ -157,9 +163,10 @@ Use the following format for the final report, filling in the title and results 
 | Goal | <overall goal and completion criteria satisfaction> |
 | Scope | <implementation scope and module progress> |
 | Changes | <main production code and test code changes> |
+| Structural change | <yes (cross-module or module's overall code structure changed) / no (only internal module logic or local changes)> |
 | Test scope | <units under test and test case scope orchestrated for /aca-test> |
 | Commits | <commit records / uncommitted> |
 | Blockers | <blockers and reasons / none> |
 | Recommendations | <extension recommendations / none> |
-| Next step | <one immediately actionable step> |
+| Next step | </aca-review when there is a structural change, /aca-test directly when changes are only inside a module with no structural change> |
 ```

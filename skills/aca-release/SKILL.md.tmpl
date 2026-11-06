@@ -95,14 +95,10 @@ If execution cannot continue in Chapters 4 through 7, report completed facts, th
 1. Run `bash ~/.claude/skills/aca/bin/aca-release-notify-check .` to check the announcement configuration
    Record the check result and the corresponding configuration location
 2. Act on the check result
-
-   | Result | Action |
-   | --- | --- |
-   | `NOTIFY_NONE` | Record that no transport is configured and continue the release |
-   | `NOTIFY_WIRED` | Record the platform and consumer point and continue the release |
-   | `NOTIFY_UNWIRED` | Stop and report that the announcement does not use `aca-tag-notify-extract <tag>` to extract content, then check again after the configuration is corrected |
-   | Unable to complete the check | Stop and report the reason and resume conditions |
-
+   - `NOTIFY_NONE`: record that no transport is configured and continue the release
+   - `NOTIFY_WIRED`: record the platform and consumer point and continue the release
+   - `NOTIFY_UNWIRED`: stop and report that the announcement does not use `aca-tag-notify-extract <tag>` to extract content, then check again after the configuration is corrected
+   - Unable to complete the check: stop and report the reason and resume conditions
 3. Use the configuration check result for the [Announcement Cross-Check](#72-cross-check-the-release-announcement)
    Check again after the configuration is corrected
    The configuration check confirms that the summary is integrated
@@ -303,15 +299,11 @@ Release announcements are generated from the NOTIFY block in the annotated Tag
 1. Locate the delivery results
    Use the [announcement configuration](#33-announcement-configuration) and the repository release workflow to find tasks, logs, or delivery receipts for this Tag
 2. Record the delivery status based on evidence
-
-   | Status | Basis for determination |
-   | --- | --- |
-   | Sent | Evidence of successful delivery for this Tag |
-   | Pending delivery | Confirmed to still be waiting or in progress |
-   | Delivery failed | An explicit failure result |
-   | Unconfirmed | Insufficient evidence to determine the delivery status |
-   | Transport not configured | Configuration checks confirm that no delivery mechanism is configured |
-
+   - Evidence of successful delivery for this Tag exists: mark as sent
+   - The task is confirmed to still be waiting or in progress: mark as pending delivery
+   - An explicit delivery failure result exists: mark as delivery failed
+   - Evidence is insufficient to determine the delivery status: mark as unconfirmed
+   - Configuration checks confirm that no delivery mechanism is configured: mark as transport not configured
 3. Handle follow-up actions
    If delivery fails, recover or resend according to repository conventions
    If the status is unconfirmed, report the missing evidence

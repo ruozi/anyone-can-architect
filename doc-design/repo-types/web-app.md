@@ -22,7 +22,7 @@ The repository delivers only the frontend; integrate backend capabilities as ext
 │  │  ├─ class-design.md    Internal implementation and white-box tests for a single-module application
 │  │  ├─ distribution.md    Frontend artifact build, delivery, verification, and failure handling
 │  │  ├─ infrastructure.md  Infrastructure, resources, and integration conventions
-│  │  ├─ instrumentation.md   Business data recording, collection destinations, and responsibilities
+│  │  ├─ instrumentation.md   Frontend business data recording, set up as needed
 │  │  ├─ interaction.md     User scenarios, interfaces, and interaction behavior
 │  │  ├─ release.md         Verification, merge, and version lock-in workflow
 │  │  ├─ security.md        Attack surface analysis and protection rationale
@@ -55,7 +55,7 @@ The repository delivers only the frontend; integrate backend capabilities as ext
 | `class-design.md` | The frontend has only one business module | [class-design](../documents/class-design.md) |
 | `distribution.md` | Always required | [distribution](../documents/distribution.md) |
 | `infrastructure.md` | Infrastructure requires defined resource structures or integration conventions | [infrastructure](../documents/infrastructure.md) |
-| `instrumentation.md` | Always required | [instrumentation](../documents/instrumentation.md) |
+| `instrumentation.md` | The frontend is responsible for recording business data | [instrumentation](../documents/instrumentation.md) |
 | `interaction.md` | Always required | [interaction](../documents/interaction.md) |
 | `module-<identifier>/` document set | The frontend contains multiple business modules | [module](../document-sets/module.md) |
 | `ops-guide/` document set | Operations or data platform users need guidance on data collection, analysis and judgment, or operational actions | [ops-guide](../document-sets/ops-guide.md) |
@@ -73,27 +73,31 @@ Project records, user guides, and operations guides use the locations and requir
 ```text
 design/
 ├─ backend/             Backend internal design and deployment
+│  ├─ instrumentation.md Backend business data recording
+│  └─ …
 ├─ frontend/            Frontend internal design and distribution
 │  ├─ module-<identifier>/    Module design for a frontend with multiple modules
 │  ├─ architecture.md   Internal frontend module responsibilities and collaboration
 │  ├─ class-design.md   Internal implementation and white-box tests for a single-module frontend
 │  ├─ distribution.md   Frontend artifact build, delivery, verification, and failure handling
 │  ├─ infrastructure.md Frontend infrastructure, resources, and integration conventions
-│  ├─ instrumentation.md   Business data recording, collection destinations, and responsibilities
+│  ├─ instrumentation.md Frontend business data recording, set up as needed
 │  ├─ interaction.md    User scenarios, interfaces, and interaction behavior
 │  ├─ security.md       Frontend security design
 │  └─ testcase.md       Black-box tests for overall frontend behavior
 ├─ architecture.md      Frontend and backend responsibilities, boundaries, and collaboration
-└─ release.md           Release verification, merge, and version lock-in for the entire application
+└─ release.md           Release verification, merge, and Tag lock-in for the unified repository version
 ```
 
 | File or document set | Required when | Writing reference |
 | --- | --- | --- |
 | `backend/` | Always required | [backend-service](backend-service.md) |
+| `backend/instrumentation.md` | Always required | [instrumentation](../documents/instrumentation.md) |
 | `frontend/` | Always required | Each file uses its corresponding writing reference in §2.1 |
 | `architecture.md` | Always required | [architecture](../documents/architecture.md) |
 | `frontend/architecture.md` | The frontend contains multiple business modules or processes | [architecture](../documents/architecture.md) |
 | `frontend/distribution.md` | Always required | [distribution](../documents/distribution.md) |
+| `frontend/instrumentation.md` | The frontend is responsible for recording business data | [instrumentation](../documents/instrumentation.md) |
 | `frontend/interaction.md` | Always required | [interaction](../documents/interaction.md) |
 | `release.md` | Versions need to be released | [release](../documents/release.md) |
 | `frontend/testcase.md` | Always required | [testcase](../documents/testcase.md) |
@@ -103,6 +107,8 @@ Apply the internal design, interface, testing, infrastructure, data observabilit
 Govern project records, the documentation entry, user guides, and [release](../documents/release.md) together; place the user manual and backend integration guide in `docs/user-guide/`, and use release to define release verification, merge, and Tag lock-in for the entire repository
 Place operations guides together in the outer `docs/ops-guide/`, referencing the event and data definitions of the frontend and backend
 Define frontend distribution and backend deployment in `frontend/distribution.md` and `backend/deployment.md`, respectively
+The backend records business processing results and defines their events, parameters, and data destinations in `backend/instrumentation.md`
+When the frontend needs to record its own business events, select `frontend/instrumentation.md`
 Define user interaction in `frontend/interaction.md`; maintain separate `testcase.md` files for the frontend and backend, without creating a project-level testcase
 
 ## 3 Governance Order
@@ -117,7 +123,7 @@ When subsequent governance identifies missing or conflicting upstream designs, c
    - Govern the selected [architecture](../documents/architecture.md) based on [interaction](../documents/interaction.md)
    - First govern the resource structures and integration conventions in the selected [infrastructure](../documents/infrastructure.md) that affect internal implementation
    - First govern the constraints in [distribution](../documents/distribution.md) and the selected [security](../documents/security.md) that affect internal implementation
-   - Govern [instrumentation](../documents/instrumentation.md) to define the data recording conventions needed for internal implementation
+   - Govern the selected [instrumentation](../documents/instrumentation.md) to define the data recording conventions needed for internal implementation
 3. Govern internal design
    - For a single-module frontend, govern the project-level [class-design](../documents/class-design.md)
    - For a frontend with multiple modules, govern dependency modules first according to the module dependencies defined in [architecture](../documents/architecture.md)

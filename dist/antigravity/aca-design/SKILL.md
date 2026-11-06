@@ -41,6 +41,8 @@ Change only documentation, not code
 - Remove content that adds no information and does not help understanding
 - Write one sentence per line, with only one fact per sentence
 - State actions directly in operational steps
+- If a specific practice fully expresses a constraint, write the practice directly
+- Keep prohibitions that no specific practice can fully express
 - Write sequential actions as separate items
 - Make the actor, the object of the action, and the referents clear
 - Do not repeat actors, objects of actions, or referents already clear from context
@@ -167,11 +169,13 @@ If neither the repo-type spec nor the document set specifies an order, arrange w
      Keep plain text in headings, code blocks, Mermaid labels, and product copy
 4. Synchronize affected test designs
    - Identify affected black-box and white-box test designs based on contracts, flows, and internal mechanisms added, revised, or deleted in this round
+   - Against the confirmed design, check the affected existing test code, fixtures, and the behavior they actually verify
    - Update test designs in sequence according to the corresponding doc designs and [test cases](~/.gemini/config/skills/aca/doc-design/patterns/testcase.md)
      1. Update fixtures
      2. Update test scenarios and their references to design rationale
      3. Update test cases based on the scenarios
         Add missing cases, revise changed cases, and delete or replace invalid cases
+   - Leave actual changes to test code and fixtures to `/aca-implement`
    - If only wording is revised and verified behavior has not changed, check that test designs and references remain valid
    - If solution decisions or as-is evidence required for test design are missing, handle them under §3
    - If affected docs are outside the current scope, record their locations and the content that needs synchronization
@@ -256,8 +260,10 @@ Perform the following steps after writing and scope checks are complete for all 
    After all applicable checks pass, commit only actual closeout changes, then push to the remote
    If there are no actual changes, do not create an empty commit, and push existing commits from this round
    If committing or pushing is not possible, record completed work, incomplete actions, and the resumption point, and report incomplete under §8
-5. Continue to review
-   After all closeout requirements are complete, the next step is `/aca-review`
+5. Determine whether design review is needed and continue
+   After all closeout requirements are complete, check whether the design in this round is cross-module (involving multiple modules, the project-level architecture, the module division, or cross-module interfaces and collaboration contracts)
+   - Cross-module: the next step is `/aca-review` for a design review
+   - Not cross-module (only changes inside a single module or local design changes): skip design review and go directly to the next step (`/aca-implement` when this round needs code, or `/aca-release` according to the confirmed version progression plan when this round changes only design docs)
 
 ## 8 Output
 
@@ -275,16 +281,16 @@ Perform the following steps after writing and scope checks are complete for all 
 
    | Item | Result |
    | --- | --- |
-   | Scope | <current scope and progress in this round> |
+   | Scope | <current scope, progress in this round, and whether it is cross-module> |
    | Inputs | <solution or as-is state and actual sources> |
    | Docs | <files added, revised, moved, or deleted / none> |
    | Checks | <actual results, basis for reuse, and unverified items> |
    | Commits | <commit and push results / not committed> |
    | Pending | <incomplete items, reasons, and resumption point / none> |
-   | Next step | <target skill and pending scope / fill corresponding gaps / none> |
+   | Next step | </aca-review after cross-module closeout, /aca-implement or /aca-release directly after non-cross-module closeout, or fill corresponding gaps> |
    ```
 
 3. Determine the next step
-   After this round is fully closed out, the next step is `/aca-review`
+   After this round is fully closed out, continue to `/aca-review`, `/aca-implement`, or `/aca-release` according to whether the design is cross-module, as in step 5 of 7.2
    If the current scope is complete but another scope remains, determine the next path under 7.1
    If work is incomplete, fill the corresponding gaps, and do not judge Design complete solely because files have been written

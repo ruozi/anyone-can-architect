@@ -18,9 +18,9 @@
 结构示意：
 
 ```text
-## 1 公共契约           按需 · 数据契约
+## 1 公共契约           按需 · 数据契约及共用连接与认证约定
 ## 2 <一类业务>
-### 2.1 共用契约        按需 · 数据契约
+### 2.1 共用契约        按需 · 数据契约及共用连接与认证约定
 ### 2.2 <接口>          模块接口
 ### 2.3 <接口>          模块接口
 ## 3 <接口>             业务只有一个接口时 chapter 本身就是接口 · 模块接口
@@ -30,20 +30,23 @@
 - 一类业务的 [chapter](../../CONTEXT.md#chapter)：每个接口一个 [section](../../CONTEXT.md#section)
   - 共用契约 [section](../../CONTEXT.md#section)：这类业务共用的契约
 
+数据结构与校验契约按[数据契约](../patterns/schema.md)表达
+共用连接与认证约定说明协议入口及认证方式，各接口引用对应内容
+
 ## 3 行文步骤
 
 1. 理解并列出全部内容，先不动笔
    - 理解业务：每个接口服务什么业务
-   - 理解数据结构：每个接口用到的数据结构
+   - 理解契约：每个接口用到的数据结构、连接与认证约定
 2. 决定公共契约
-   - 有被不同业务的接口共用的数据结构或校验契约：作为第一个 [chapter](../../CONTEXT.md#chapter)，按数据契约 pattern 写
+   - 有被不同业务的接口共用的数据结构、校验契约或连接与认证约定：作为第一个 [chapter](../../CONTEXT.md#chapter)
    - 没有：跳过
 3. 划分 [chapter](../../CONTEXT.md#chapter) 与 [section](../../CONTEXT.md#section)
    - 按业务把接口归成几个 [chapter](../../CONTEXT.md#chapter)，名字用业务语言，不用协议动词、路径或方法名
    - 只含一个接口的 [chapter](../../CONTEXT.md#chapter) 就是这个接口，不设 [section](../../CONTEXT.md#section)
-   - 含多个接口的 [chapter](../../CONTEXT.md#chapter) 内有被多个接口共用的数据结构或校验契约：作为它的第一个 [section](../../CONTEXT.md#section)，按数据契约 pattern 写
+   - 含多个接口的 [chapter](../../CONTEXT.md#chapter) 内有共用契约：作为它的第一个 [section](../../CONTEXT.md#section)
    - 含多个接口的 [chapter](../../CONTEXT.md#chapter) 一个接口一个 [section](../../CONTEXT.md#section)，名字用业务语言
-4. 逐个写接口：按模块接口 pattern 写，不加解释性说明，不列举调用方
+4. 逐个写接口：按[模块接口](../patterns/interface.md)选择语言或协议对应的表达方式，引用共用契约，不列举调用方
 
 ## 4 示例
 
@@ -54,6 +57,7 @@
 | `## 1 公共契约` | 只有标题 |
 | `### 1.1 错误体与错误码` | [数据契约](../patterns/schema.md) |
 | `### 1.2 公共类型` | [数据契约](../patterns/schema.md) |
+| `### 1.3 连接与认证` | 共用协议约定，表达参考[连接与认证示例](../patterns/interface.md#51-连接与认证) |
 | `## 2 订单受理` | 只有标题 |
 | `### 2.1 订单共用类型` | [数据契约](../patterns/schema.md) |
 | `### 2.2 创建订单` | [模块接口](../patterns/interface.md) |
@@ -79,6 +83,7 @@
 
 - [ ] 只有 [chapter](../../CONTEXT.md#chapter) 与 [section](../../CONTEXT.md#section) 两层，没有一个 [chapter](../../CONTEXT.md#chapter) 只有一个 [section](../../CONTEXT.md#section)
 - [ ] [chapter](../../CONTEXT.md#chapter) 名与 [section](../../CONTEXT.md#section) 名是业务语言，没有协议动词、路径或方法名
-- [ ] 契约类型按使用范围归属，公共契约 [chapter](../../CONTEXT.md#chapter) 里没有只被一个 [chapter](../../CONTEXT.md#chapter) 使用的类型，共用契约 [section](../../CONTEXT.md#section) 里没有只被一个接口使用的类型
+- [ ] 共用契约按使用范围归属，公共契约 [chapter](../../CONTEXT.md#chapter) 里没有只被一个 [chapter](../../CONTEXT.md#chapter) 使用的约定，共用契约 [section](../../CONTEXT.md#section) 里没有只被一个接口使用的约定
+- [ ] 共用连接与认证约定可定位，各接口按调用方使用的语言或协议表达
 - [ ] 没有列举调用方
 - [ ] architecture 工况中调用到的接口都在本文档中，本文档列出的接口都有工况触发

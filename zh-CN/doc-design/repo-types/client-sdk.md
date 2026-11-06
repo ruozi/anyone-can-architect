@@ -46,7 +46,7 @@
 ```
 
 `user-guide/` 面向产品使用者，指导接入或使用产品
-`ops-guide/` 面向运营或数据平台使用者，指导数据收集、分析判断与运营动作，并验证动作效果
+`ops-guide/` 面向运营或数据平台使用者，按本工程需要提供数据收集、分析判断或运营动作指导
 `user-guide/` 内的指南根据使用方式选用 [integration-guide](../documents/integration-guide.md) 或 [user-manual](../documents/user-manual.md) 的写法
 `ops-guide/` 按 [ops-guide](../document-sets/ops-guide.md) 文档组组织
 
@@ -64,7 +64,7 @@
 | `instrumentation.md` | 始终必需 | [instrumentation](../documents/instrumentation.md) |
 | `interface.md` | 始终必需 | [interface](../documents/interface.md) |
 | `module-<标识>/` 文档组 | SDK 包含多个业务模块 | [module](../document-sets/module.md) |
-| `ops-guide/` 文档组 | 运营或数据平台使用者需要数据收集、分析判断或运营操作指导 | [ops-guide](../document-sets/ops-guide.md) |
+| `ops-guide/` 文档组 | 本工程需要向运营或数据平台使用者提供数据收集、分析判断或运营操作指导 | [ops-guide](../document-sets/ops-guide.md) |
 | `release.md` | 需要发布版本 | [release](../documents/release.md) |
 | `security.md` | 涉及凭据、用户数据、网络传输或权限 | [security](../documents/security.md) |
 | `testcase.md` | 始终必需 | [testcase](../documents/testcase.md) |
@@ -143,7 +143,7 @@ SDK 分发与后台部署分别由 `sdk/design/distribution.md` 和 `backend/des
 必要条件沿用各自类型规则
 运营指南按采集、分析与动作职责分篇
 各篇的内容组织沿用 [ops-guide](../document-sets/ops-guide.md) 文档组与对应文档设计
-一个运营目标涉及两端时，三篇指南引用对应端的契约、数据与安全设计
+一个运营目标涉及两端时，已选用的指南引用对应端的契约、数据与安全设计
 通过跨文档引用串联数据采集、分析判断、运营动作与效果验证
 共用方法与操作在一处定义，其他指南引用
 

@@ -72,7 +72,7 @@ _Avoid_: "subsection", "second-level heading", "clause"
 ### subsection
 
 Subsection
-`#### N.N.N Title`, the third level of division below a section and the deepest level, appearing only in blocks specified by a pattern
+`#### N.N.N Title`, the third level of division below a section and the deepest level, used at positions specified by a doc design or pattern
 _Avoid_: "third-level heading"
 
 ### drill-down
@@ -97,7 +97,7 @@ _Avoid_: "imprint", "marker", "version block"
 - [doc-design](#doc-design) references the guiding principles for drill-down and specifies which parts to [drill-down](#drill-down) into
 - [module](#module) uses the module [document-set](#document-set), with [repo-type-spec](#repo-type-spec) determining when to use it
 - [aca-footer](#aca-footer) determines the project's [repo-type](#repo-type)
-- [chapter](#chapter) contains many [section](#section), [section](#section) contains many [subsection](#subsection), and doc designs specify structure only down to section
+- [chapter](#chapter) contains many [section](#section), [section](#section) contains many [subsection](#subsection)
 
 ## Flagged ambiguities
 

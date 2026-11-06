@@ -22,7 +22,7 @@
 │  │  ├─ class-design.md    单模块应用的内部实现与白盒测试
 │  │  ├─ distribution.md    前端制品构建、交付、验证与故障处置
 │  │  ├─ infrastructure.md  基础设施、资源与接入约定
-│  │  ├─ instrumentation.md   业务数据记录、采集去向与责任
+│  │  ├─ instrumentation.md   前端业务数据记录，按需设置
 │  │  ├─ interaction.md     用户场景、界面与交互行为
 │  │  ├─ release.md         验证、合并与版本固化流程
 │  │  ├─ security.md        攻击面分析与防护论证
@@ -55,7 +55,7 @@
 | `class-design.md` | 前端只有一个业务模块 | [class-design](../documents/class-design.md) |
 | `distribution.md` | 始终必需 | [distribution](../documents/distribution.md) |
 | `infrastructure.md` | 存在需要定义资源结构或接入约定的基础设施 | [infrastructure](../documents/infrastructure.md) |
-| `instrumentation.md` | 始终必需 | [instrumentation](../documents/instrumentation.md) |
+| `instrumentation.md` | 前端承担业务数据记录职责 | [instrumentation](../documents/instrumentation.md) |
 | `interaction.md` | 始终必需 | [interaction](../documents/interaction.md) |
 | `module-<标识>/` 文档组 | 前端包含多个业务模块 | [module](../document-sets/module.md) |
 | `ops-guide/` 文档组 | 运营或数据平台使用者需要数据收集、分析判断或运营操作指导 | [ops-guide](../document-sets/ops-guide.md) |
@@ -73,28 +73,32 @@
 ```text
 design/
 ├─ backend/             后端内部设计与部署
+│  ├─ instrumentation.md 后端业务数据记录
+│  └─ …
 ├─ frontend/            前端内部设计与分发
 │  ├─ module-<标识>/    多模块前端的模块设计
 │  ├─ architecture.md   前端内部的模块职责与协作
 │  ├─ class-design.md   单模块前端的内部实现与白盒测试
 │  ├─ distribution.md   前端制品构建、交付、验证与故障处置
 │  ├─ infrastructure.md 前端基础设施、资源与接入约定
-│  ├─ instrumentation.md   业务数据记录、采集去向与责任
+│  ├─ instrumentation.md 前端业务数据记录，按需设置
 │  ├─ interaction.md    用户场景、界面与交互行为
 │  ├─ security.md       前端安全设计
 │  └─ testcase.md       前端整体行为的黑盒测试
 ├─ architecture.md      前后端职责、边界与协作关系
-└─ release.md           整个应用的发布验证、合并与版本固化
+└─ release.md           仓库统一版本的发布验证、合并与 Tag 固化
 ```
 
 | 文件或文档组 | 必要条件 | 行文参考 |
 | --- | --- | --- |
 | `backend/` | 始终必需 | [backend-service](backend-service.md) |
+| `backend/instrumentation.md` | 始终必需 | [instrumentation](../documents/instrumentation.md) |
 | `frontend/` | 始终必需 | 各文件沿用 §2.1 对应的行文参考 |
 | `architecture.md` | 始终必需 | [architecture](../documents/architecture.md) |
 | `frontend/architecture.md` | 前端包含多个业务模块或多个进程 | [architecture](../documents/architecture.md) |
 | `frontend/distribution.md` | 始终必需 | [distribution](../documents/distribution.md) |
 | `frontend/interaction.md` | 始终必需 | [interaction](../documents/interaction.md) |
+| `frontend/instrumentation.md` | 前端承担业务数据记录职责 | [instrumentation](../documents/instrumentation.md) |
 | `release.md` | 需要发布版本 | [release](../documents/release.md) |
 | `frontend/testcase.md` | 始终必需 | [testcase](../documents/testcase.md) |
 
@@ -103,6 +107,8 @@ design/
 项目级记录、文档入口、用户指南与 [release](../documents/release.md) 统一治理；用户手册与后端接入指南放在 `docs/user-guide/`，release 定义整个仓库的发布验证、合并与 Tag 固化
 运营指南统一放在外围的 `docs/ops-guide/`，引用前后端各自的事件与数据定义
 前端分发与后端部署分别由 `frontend/distribution.md` 和 `backend/deployment.md` 定义
+业务处理结果的记录由后端负责，事件、参数与数据去向在 `backend/instrumentation.md` 定义
+前端需要记录自身业务事件时，选用 `frontend/instrumentation.md`
 用户交互由 `frontend/interaction.md` 定义；前端与后端分别维护自己的 `testcase.md`，不建立项目级 testcase
 
 ## 3 治理顺序
@@ -117,7 +123,7 @@ design/
    - 根据 [interaction](../documents/interaction.md) 治理已选用的 [architecture](../documents/architecture.md)
    - 先治理已选用的 [infrastructure](../documents/infrastructure.md) 中影响内部实现的资源结构与接入约定
    - 先治理 [distribution](../documents/distribution.md) 与已选用的 [security](../documents/security.md) 中影响内部实现的约束
-   - 治理 [instrumentation](../documents/instrumentation.md)，明确内部实现所需的数据记录约定
+   - 治理已选用的 [instrumentation](../documents/instrumentation.md)，明确内部实现所需的数据记录约定
 3. 治理内部设计
    - 单模块前端治理项目级 [class-design](../documents/class-design.md)
    - 多模块前端按 [architecture](../documents/architecture.md) 定义的模块依赖关系，先治理被依赖的模块

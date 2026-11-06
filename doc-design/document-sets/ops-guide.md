@@ -2,12 +2,13 @@
 
 ## 1 When to Use
 
-Use for projects that use engineering-generated data to support analysis, judgment, and operational actions, and continuously check the effects of those actions
+Use for projects that need to give operations or data platform users guidance on data collection, analysis methods, or operational actions
 
 ## 2 Composition
 
-Data collection, data analysis, and operational actions have separate responsibilities, each described in its own guide
-Place the docs in the operations guide directory specified by the repo type, with four fixed files
+Create the operations guide directory and each of the three guides as needed
+When no guide is needed, you can omit the `ops-guide/` directory
+Place the docs in the operations guide directory specified by the repo type; see the table below for the required conditions and file names
 
 ```text
 ops-guide/
@@ -17,16 +18,16 @@ ops-guide/
 └─ ops-actions.md
 ```
 
-| File | Responsibility |
-| --- | --- |
-| `README.md` | Explain operational objectives, the relationships among the three guides, and the entry points for execution |
-| [data-collection.md](../documents/data-collection.md) | Explain raw data sources, acquisition methods, and data definitions |
-| [data-analysis.md](../documents/data-analysis.md) | Summarize analysis metrics and explain the analysis method and optional visualization methods for each metric |
-| [ops-actions.md](../documents/ops-actions.md) | Explain permitted actions, operating methods, and result verification methods by chapter, and explain the basis for operations as needed |
+| File | Required when | Responsibility |
+| --- | --- | --- |
+| `README.md` | The operations guide directory is created | Explain the purpose of the selected guides, their relationships, and the entry points for execution |
+| [data-collection.md](../documents/data-collection.md) | This project needs to explain how to acquire and define data | Explain raw data sources, acquisition methods, and data definitions |
+| [data-analysis.md](../documents/data-analysis.md) | This project needs to give guidance on metric analysis | Summarize metrics and explain the analysis method and optional visualization methods for each metric |
+| [ops-actions.md](../documents/ops-actions.md) | This project needs to give guidance on operational actions | Explain permitted actions, operating methods, and result verification methods, and explain the basis for operations as needed |
 
 Organize entry points and navigation in README according to the [readme doc design](../documents/readme.md)
-Each of the three guides organizes content around its own responsibilities, with its specific chapter structure defined by its doc design
-Connect operational objectives through cross-doc references
+Each selected guide organizes content around its own responsibilities, with its specific chapter structure defined by its doc design
+When data acquisition involves export, decryption, or parsing, put the operating instructions in the acquisition method of [data-collection](../documents/data-collection.md#2-structure)
 
 ### 2.1 Input–Output Relationships
 
@@ -43,26 +44,23 @@ Connect operational objectives through cross-doc references
    Reference [instrumentation](../documents/instrumentation.md) for engineering-generated events and parameters without redefining them
 2. Define shared content in one place
    Prefer a unified explanation in the guide responsible for that content
-   Create a separate doc only when the content requires independent maintenance and reuse across multiple scenarios
 3. Retain information for the current scenario
    When referencing shared methods, specify the selected method, applicable conditions, inputs or parameters, and expected results
 
 ## 3 Governance Order
 
-1. Determine operational objectives and the input–output relationships among the three guides
-   Define the questions that analysis must answer and the data required
-   Check the data the engineering system can provide and the actions that can actually be taken
-2. Write the data collection guide
+1. Determine the guides this engineering system must provide, and select files according to [Composition](#2-composition)
+   Check the required data, analysis methods, and permitted actions, and locate existing definitions
+2. When data acquisition and definitions must be explained, write the data collection guide
    Define raw data sources, acquisition methods, and data definitions
-3. Write the data analysis guide
+3. When metric analysis guidance is needed, write the data analysis guide
    Summarize metrics and explain the analysis method and optional visualization methods for each metric
-   If required raw data sources or definitions are missing, return to step 2 to complete them
-4. Write the operational actions guide
+   If required raw data sources or definitions are missing, add the corresponding content or references
+4. When operational action guidance is needed, write the operational actions guide
    Explain permitted actions, operating methods, and result verification methods by chapter
-   Add references when actions depend on analysis metrics, and return to step 3 to add missing metrics
+   When actions depend on analysis metrics, add the corresponding content or references
 5. Complete README and cross-doc references
-   When changes affect other guides, update inputs, outputs, and references together
-   Starting from operational objectives, check the connections between collection, analysis, actions, and the next round of data
+   Summarize the purpose and entry points for execution of the selected guides, and check the inputs and result verification methods each one needs
 
 When engineering capabilities or business decisions are insufficient, record the specific gaps and continue writing after the input provider confirms them
 The guides must not invent unconfirmed engineering capabilities
@@ -70,11 +68,11 @@ This chapter defines the doc governance order, while each guide defines its actu
 
 ## 4 Checklist
 
-- [ ] After selecting the document set, all four fixed files exist and each has clear responsibilities
-- [ ] README explains operational objectives and the relationships among the three guides, and provides valid entry points
-- [ ] Raw data sources, acquisition methods, and data definitions are complete and can be consulted directly or located through references
-- [ ] The metric summary provides access to each metric chapter, analysis methods are clear, and visualizations are explained as needed
-- [ ] Permitted actions, operating methods, and result verification methods are clear
+- [ ] The directory and guides are selected according to the actual needs of this engineering system, and file names follow the composition
+- [ ] When the directory is created, README explains the purpose of the selected guides, their relationships, and the entry points for execution
+- [ ] When the data collection guide is selected, raw data sources, acquisition methods, and data definitions are complete
+- [ ] When the data analysis guide is selected, the metric summary provides access to each metric chapter, and analysis methods are clear
+- [ ] When the operational actions guide is selected, permitted actions, operating methods, and result verification methods are clear
 - [ ] When data is used to evaluate the effects of actions, the required data and analysis metrics can be located
 - [ ] The analysis guide references the required raw data, and actions that depend on analysis metrics reference the corresponding metric chapters
 - [ ] Shared definitions and rules are defined in one place and can be located through references

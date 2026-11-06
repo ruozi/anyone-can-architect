@@ -3,164 +3,194 @@
 ## 1 Purpose
 
 Define the complete process for this repository from pre-release verification to merging into main and locking the Tag, including the execution method, pass criteria, failure handling, and recovery point for each step
+All parts delivered from the same repository use one repository version, and one release process is defined for them
 
 ## 2 Structure
 
-Chapter 1 defines release prerequisites, including the version source, version records that must be consistent, the merge chain, and execution requirements
-Chapter 2 presents the release process in the actual order used by this repository, through merging into main and locking the Tag
-Each step defines the execution method, pass criteria, failure handling, and recovery point
+The first [chapter](../../CONTEXT.md#chapter) shows the release process with a [flowchart](../patterns/flowchart.md#21-flowchart), and its nodes reference the corresponding stages
+Later content expands the stages, and each stage can use its own [chapter](../../CONTEXT.md#chapter)
+When there are few stages, they can share one [chapter](../../CONTEXT.md#chapter), separated by [sections](../../CONTEXT.md#section)
+Each stage describes the execution method, pass criteria, failure handling, and recovery point
 Use [drill-down](../../skills/references/drill-down.md) for complex stages based on their actual content
 
+Treat release prerequisites as a stage to check, and describe the version source, version records, merge chain, and execution requirements
 Arrange verification steps as needed by the repository, including tests, builds, verification on real platforms, and other necessary operations, either running full verification uniformly or defining tiered verification by the design boundary crossed and dependency blast radius
-Include the release summary in the step that locks the Tag, and expand its format under that step when a detailed definition is needed
-Add a separate chapter for release announcements as needed, defining triggers, content sources, channels, and retries after failure
+Include the release summary in the stage that locks the Tag
+Arrange branch cleanup according to the repository policy, limited to branches merged in this release that no longer carry later work
+Arrange release announcements as needed
 
-Structure outline:
+The following [hierarchy tree](../patterns/hierarchy-tree.md#21-tree) shows an example where each stage has its own chapter, and the repository process determines the actual stages
 
 ```text
-## 1 Release Prerequisites
-## 2 Release Process
-### 2.1 <execution stage>
-### 2.2 <execution stage>
-…
-## 3 Release Announcements              As needed
+<release doc>
+├─ 1 Release Process                    chapter
+├─ 2 Confirm Release Prerequisites      chapter
+├─ 3 Close Out Version Records          chapter
+├─ 4 Verify the Release Candidate       chapter
+├─ 5 Merge into main                    chapter
+├─ 6 Check the Final Commit             chapter
+├─ 7 Lock In the Version                chapter
+├─ 8 Clean Up Version Branches          chapter
+└─ 9 Release Announcements              chapter, as needed
 ```
 
 ## 3 Writing Steps
 
-1. Determine release prerequisites
-   - Define the version number source, version records that must be consistent, the merge chain, and the target Tag
-   - Determine the environment, permissions, tools, and external dependencies required for execution
-2. Design the release process for this repository
-   - Arrange operations such as closing out version records, verification, and merging according to dependencies
-   - Define commands or operating procedures, pass criteria, failure handling, and a recovery point for each step
-   - When verification is tiered by blast radius, define the test scopes for intra-unit changes, cross-module contract changes, and global foundation changes, along with periodic full verification and failure handling
+1. **Determine release inputs**
+   - Determine the version source, version records, merge chain, and target Tag
+   - Locate the environment, permissions, tools, and external dependencies required for execution
+2. **Arrange stages and verification**
+   - Arrange prerequisite checks, closing out version records, verification, and merging according to dependencies, and draw the overall process flowchart
+   - Define the operations, pass criteria, and recovery point after failure for each stage
+   - When verification is tiered by blast radius, define the corresponding test sets, conditions for escalating to full verification, and periodic full verification
    - When verification involves real platforms or model evaluation, define the required environment, data, and result evaluation criteria
-3. Define the steps to lock in the version
-   - Check that the final commit includes the content for this version, version records are consistent, and verification results apply to this commit
-   - Confirm that the version is merged into main through the merge chain, and define the source, format, and validation method for the release summary
-   - Create and push an annotated Tag on the final main commit, and check the commit referenced by the remote Tag
-   - Do not move or recreate the Tag after creation, and only retry the push if it fails
-   - Stop if a Tag with the same name already exists and points to another commit, and check the existing Tag's target and annotation when resuming execution
-4. Define release announcements as needed
-   - Define triggers, content sources, channels, and recipients
-   - Extract content from the Tag annotation, and reference the tools and validation rules used
-   - When using Lark (Feishu) cards, draw them according to the [card mockup](../patterns/lark-card-mockup.md)
-   - Define credential sources, behavior when credentials are missing, and retries after failure, and reference the security or deployment design for handling credential leaks
-   - Announcement failure does not change the fact that the version is locked in, and retries use the locked Tag
-5. Organize chapters according to [§2](#2-structure) and check the complete process
-   - The result of each step satisfies the prerequisites of the next, and resuming execution does not repeat non-reentrant operations
-   - The version number, Tag, final main commit, and verification results are traceable to one another
+   - In the final check, use the reuse conditions for existing results to decide whether to verify again, and link verification results to the final commit
+3. **Define version lock-in and follow-up handling**
+   - Define the final check of version records, and the source, format, and validation method for the release summary
+   - Create an annotated Tag on the verified main commit, and after the push, check the remote target and annotation
+   - Do not move or recreate the Tag after creation, only retry the push if it fails, and stop if a Tag with the same name conflicts
+   - Arrange cleanup of branches merged in this release according to the repository policy
+   - When announcements are needed, define how to extract content from the Tag annotation, the channels, the check of the send result, and retries after failure
+     When using Lark (Feishu) cards, draw them according to the [card mockup](../patterns/lark-card-mockup.md)
+4. **Organize the body and check it**
+   - Expand each stage according to [Structure](#2-structure), and check the steps before and after each stage and the failure recovery paths
+   - Check the version, Tag, final commit, and verification results against the [Checklist](#5-checklist)
 
 ## 4 Example
 
 ````markdown
 # Report Service Release
 
-## 1 Release Prerequisites
+## 1 Release Process
 
-| Item | Definition |
+```mermaid
+flowchart TD
+    Prepare["Confirm release prerequisites · §2"] --> Close["Close out version records · §3"]
+    Close --> Verify["Verify the release candidate · §4"]
+    Verify -->|Pass| Merge["Merge into main · §5"]
+    Verify -->|Fail, fix and verify again| Close
+    Merge --> Final["Check the final commit · §6"]
+    Final -->|Pass, or verification results reusable| Tag["Lock in the version · §7"]
+    Final -->|Fix needed, verify again through a fix branch| Close
+    Tag --> Cleanup["Clean up version branches · §8"]
+    Cleanup -->|Announcements configured| Notice["Release announcements · §9"]
+    Cleanup -->|No announcements configured| Done([Done])
+    Notice --> Done
+    click Prepare "#2-confirm-release-prerequisites"
+    click Close "#3-close-out-version-records"
+    click Verify "#4-verify-the-release-candidate"
+    click Merge "#5-merge-into-main"
+    click Final "#6-check-the-final-commit"
+    click Tag "#7-lock-in-the-version"
+    click Cleanup "#8-clean-up-version-branches"
+    click Notice "#9-release-announcements"
+```
+
+## 2 Confirm Release Prerequisites
+
+Check the following conditions, and continue after any unmet condition is satisfied
+
+| Item | Requirement for this release |
 | --- | --- |
 | Version source | VERSION, 2.0.0 for this release |
 | Version records | The finalized section for this version in CHANGELOG |
-| Consistency requirements | VERSION, the project version in pyproject.toml, and the target Tag version must match |
+| Consistency requirements | VERSION, pyproject.toml, and the target Tag version match |
 | Merge chain | feature/report-export-v2.0.0 → main, merged through a Pull Request |
 | Tag | v2.0.0, annotated Tag |
 | Execution environment | Bash, Git, the project Python environment, and container build tools |
 | Repository permissions | Commit version records, merge Pull Requests, and push Tags |
-| Verification environment | A separate test database and object storage, with credential sources in [Test Environment §1](deployment.md#1-test-environment) |
+| Verification environment | A separate test database and object storage, using the isolated resources defined in [test fixtures](testcase.md#1-fixtures) |
 
-`scripts/release-verify.sh` runs unit tests, database migration tests, an image build, and upload and download verification with real object storage in sequence
-The script records the source commit, individual results, and image digest, and returns a nonzero exit code if any check fails
-Keep verification records and images outside the repository, and clean up test data from this run after verification
+`scripts/release-verify.sh` runs unit tests, database migration tests, an image build, and object storage upload and download verification
+Verification results are linked to the source commit, verification inputs, individual results, and image digest, and the script returns a nonzero exit code if any check fails
+Clean up test data from this run after verification
 
-## 2 Release Process
+## 3 Close Out Version Records
 
-### 2.1 Close Out Version Records
+1. Update the project version in VERSION and pyproject.toml to 2.0.0, close out the finalized section for this version in CHANGELOG, and commit
+2. Run `bash scripts/check-version.sh 2.0.0`
+   - Returns 0 and the working tree is clean: go to [candidate verification](#4-verify-the-release-candidate)
+   - Validation fails: correct and commit the version records, then validate again
 
-**Execution**: Update VERSION and the project version in pyproject.toml to 2.0.0, close out the finalized section for this version in CHANGELOG, and commit
+## 4 Verify the Release Candidate
 
-**Pass**: Running `bash scripts/check-version.sh 2.0.0` returns 0, and the working tree is clean
+1. Run `bash scripts/release-verify.sh`
+2. Check the results
+   - All checks pass, and the results are linked to the current candidate commit: go to [Merge into main](#5-merge-into-main)
+   - Verification fails: fix the issue and rerun this stage
+   - Test data cleanup fails: clean up data from this run first, then verify again
 
-**Failure and recovery**: Stop at this stage, correct and commit the version records, then validate again
+## 5 Merge into main
 
-### 2.2 Verify the Version to Merge
+1. Create or update the Pull Request, complete the reviews and checks required by branch protection, then merge into main
+   - Conflicts must be resolved or content must change: update the Pull Request after [candidate verification](#4-verify-the-release-candidate)
+   - The Pull Request is not merged yet: stop at this stage
+   - The Pull Request is merged: continue to the [final check](#6-check-the-final-commit)
+2. When resuming, check the merge status first, and keep the merge result of a Pull Request that is already merged
 
-**Execution**: Run `bash scripts/release-verify.sh`
+## 6 Check the Final Commit
 
-**Pass**: The script returns 0, all checks pass, and the source commit in the verification records matches the current HEAD
+1. Run `git fetch origin`, switch to main, and synchronize with `git pull --ff-only origin main`
+2. Check that local main matches remote main, the working tree is clean, and `bash scripts/check-version.sh 2.0.0` passes
+3. Check whether the results of [candidate verification](#4-verify-the-release-candidate) apply to the current main
+   - The tested content, tests, fixtures, configuration, toolchain, and dependency environment are the same, and verification does not depend on changed commit metadata: reuse the existing results and link them to the current main commit
+   - The reuse conditions are not met: run `bash scripts/release-verify.sh` on the current main
+4. After all required checks and verification pass, go to [Lock in the version](#7-lock-in-the-version)
+   If a check or verification fails, stop at this stage, handle the cause, and verify again
+   If content needs a fix, verify it on a fix branch and merge into main, then rerun this stage
 
-**Failure and recovery**: Do not merge, and rerun this stage after committing fixes
-If test data cleanup fails, clean up data from this run before verifying again
+Even when only the commit hash changes, check the verification conditions above; compare source content with `git diff --exit-code <candidate-commit> HEAD`
 
-### 2.3 Merge into main
+## 7 Lock In the Version
 
-**Execution**: Create a Pull Request, complete reviews and required checks according to repository branch protection rules, then merge into main
+1. Generate a summary file outside the repository from the finalized section for this version in CHANGELOG, and validate its format with the [summary validation tool](../../bin/aca-tag-notify-check)
+   The last summary entry uses the verification results from the [final check](#6-check-the-final-commit)
+   If validation fails, correct the summary and validate again before continuing
 
-**Pass**: The Pull Request is merged, and remote main contains all commits for this version
+   ```text
+   v2.0.0: Report export
 
-**Failure and recovery**: Stop at this stage if the merge is incomplete
-After resolving conflicts or modifying code, return to §2.2 for verification, then update the Pull Request
-Check the merge status before resuming execution, and do not merge a Pull Request that is already merged
+   ---NOTIFY-BEGIN---
+   📄 Reports · Support exporting and downloading business reports
+   ✅ Verification · Unit tests, migration tests, image build, and object storage verification passed
+   ---NOTIFY-END---
+   ```
 
-### 2.4 Check the Final Commit
+2. Synchronize with the remote again, confirm that main still points to the verified commit, and check the target Tag locally and on the remote
+   - The target Tag exists neither locally nor on the remote: create the Tag with `git tag -a v2.0.0 <verified-main-commit> -F /tmp/report-service-v2.0.0.md`, then run `git push origin v2.0.0`
+   - main has changed: return to the [final check](#6-check-the-final-commit)
+   - The Tag exists and its target and annotation match: keep the existing Tag, and push it if the remote does not have it yet
+   - The target or annotation of a Tag with the same name does not match: stop and report the conflict
+3. Check that the remote Tag is an annotated Tag, points to the verified main commit, and contains the summary for this version in its annotation
 
-**Execution**: Run `git fetch origin`, switch to main, and synchronize with `git pull --ff-only origin main`
-Rerun version validation and `bash scripts/release-verify.sh`
+## 8 Clean Up Version Branches
 
-**Pass**: Local main matches remote main, the working tree is clean, version records are correct, and all verification passes
-The source commit in the verification records matches the main commit to be locked in
+1. Check that the remote Tag passed verification, and confirm that the version branch for this release is merged into main and no longer carries later work
+2. Clean up the version branch according to the repository policy
+   - Cleanup conditions are met: delete the merged local and remote version branches for this release
+   - The branch still carries later work, or its merge status cannot be confirmed: keep the branch
+   - Cleanup fails: keep the locked-in Tag, fix the cleanup issue, and continue this stage
 
-**Failure and recovery**: Do not create a Tag
-If code or version records need correction, verify the fixes on a new fix branch and merge into main, then rerun this stage
-If main has new commits, verify the new final commit again
+## 9 Release Announcements
 
-### 2.5 Lock In the Version
+Pushing a remote v* Tag triggers the announcement pipeline, which uses the [announcement extraction tool](../../bin/aca-tag-notify-extract) to extract content from the Tag annotation and send it to the development release group
+See [Release Bot](security.md#3-release-bot) for bot credential sources and handling credential leaks
 
-**Execution**: Generate a summary file outside the repository from the finalized section for this version in CHANGELOG, and validate its format with the [summary validation tool](../../bin/aca-tag-notify-check)
-Record the verification results from §2.4 in the last summary entry
-
-Summary example:
-
-```text
-v2.0.0: Report export
-
----NOTIFY-BEGIN---
-📄 Reports · Support exporting and downloading business reports
-✅ Verification · Unit tests, migration tests, image build, and object storage verification passed
----NOTIFY-END---
-```
-
-Synchronize with the remote again before creating the Tag, and confirm that main still points to the commit verified in §2.4 and the target Tag does not yet exist
-Create the Tag with `git tag -a v2.0.0 -F /tmp/report-service-v2.0.0.md`, then run `git push origin v2.0.0`
-
-**Pass**: The remote Tag exists, points to the verified main commit, and contains the summary for this version in its annotation
-
-**Failure and recovery**: Return to §2.4 if main has changed
-If validation fails before creation, correct the summary or prerequisites and retry
-If the Tag has been created, check its target and annotation, and only complete the push if they match, without moving or recreating it
-Stop and report the conflict if the target or annotation of a Tag with the same name does not match
-
-## 3 Release Announcements
-
-Pushing a remote v* Tag triggers the announcement pipeline, which extracts announcement content from the Tag annotation and sends it to the development release group
-Use the [announcement extraction tool](../../bin/aca-tag-notify-extract) to extract content
-See [Release Bot §3](security.md#3-release-bot) for bot credential sources and handling credential leaks
-
-If credentials are missing or sending fails, the pipeline fails, and the version remains locked in
-After fixing the issue, rerun the announcement job with the same Tag, without repeating the merge, verification, or Tag creation
+Check the actual send result of the announcement job
+If credentials are missing or sending fails, add the credentials or fix the issue, then rerun the announcement job with the same Tag
 ````
 
 ## 5 Checklist
 
-- [ ] Release prerequisites define the version source, version records, merge chain, target Tag, and execution requirements
+- [ ] The overall flowchart matches the corresponding stages, and release prerequisites include the version source, version records, merge chain, target Tag, and execution requirements
 - [ ] The process covers all necessary operations for this repository from pre-release verification to merging into main and locking the Tag
-- [ ] Each step has an execution method, pass criteria, failure handling, and a recovery point
-- [ ] The verification environment, commands, and result evaluation criteria are defined, and verification results correspond to the final locked commit
-- [ ] When tiered verification is used, the test sets for each blast radius, conditions for escalating to full verification, and periodic full verification are defined
-- [ ] Prerequisites and results connect across steps, and resuming execution does not repeat non-reentrant operations
+- [ ] Each stage has an execution method, pass criteria, failure handling, and a recovery point
+- [ ] The verification environment, commands, and result evaluation criteria are defined, and existing results are checked against the reuse conditions and linked to the final commit
+- [ ] When tiered verification is used, the test sets for each blast radius, conditions for escalating to full verification, and the fallback full verification are defined
+- [ ] Prerequisites and results connect across stages, and resuming execution has a clear recovery point
 - [ ] Version records are consistent, and the summary source, format, and validation method are defined
 - [ ] The remote annotated Tag points to the verified final main commit, and the version, commit, and verification results are traceable
 - [ ] Tags are not moved or recreated, failed pushes are only retried, and execution stops if the target or annotation of a Tag with the same name conflicts
-- [ ] If announcements are configured, triggers, content extraction, channels, credential sources, failure behavior, and retry methods are defined
-- [ ] Announcement failure does not change the fact that the version is locked in, and retries use the same Tag
+- [ ] If branch cleanup is configured, it is limited to branches merged in this release that no longer carry later work
+- [ ] If announcements are configured, the trigger, content extraction, channels, credential sources, check of the send result, and retry method are clear
+- [ ] If cleanup or announcements fail, continue the corresponding stage and keep the locked-in version

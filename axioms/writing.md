@@ -26,6 +26,8 @@
 - Remove content that adds no information and does not help understanding
 - Write one sentence per line, with only one fact per sentence
 - State actions directly in operational steps
+- If a specific practice fully expresses a constraint, write the practice directly
+- Keep prohibitions that no specific practice can fully express
 - Write sequential actions as separate items
 - Make the actor, the object of the action, and the referents clear
 - Do not repeat actors, objects of actions, or referents already clear from context

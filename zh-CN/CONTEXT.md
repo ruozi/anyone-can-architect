@@ -72,7 +72,7 @@ _Avoid_: 「小节」「二级标题」「条」
 ### subsection
 
 小节
-`#### N.N.N 标题`，节之下的第三层划分，最深一层，只在 pattern 规定的块里出现
+`#### N.N.N 标题`，节之下的第三层划分，最深一层，按文档设计或 pattern 规定的位置使用
 _Avoid_: 「三级标题」
 
 ### drill-down
@@ -97,7 +97,7 @@ _Avoid_: 「印记」「标记」「版本区块」
 - [doc-design](#doc-design) 引用层层深入的指导原则，指明对哪些部分 [drill-down](#drill-down)
 - [module](#module) 使用 module [document-set](#document-set)，由 [repo-type-spec](#repo-type-spec) 决定何时使用
 - [aca-footer](#aca-footer) 决定项目的 [repo-type](#repo-type)
-- [chapter](#chapter) contains many [section](#section)，[section](#section) contains many [subsection](#subsection)，文档设计只规定到 section
+- [chapter](#chapter) contains many [section](#section)，[section](#section) contains many [subsection](#subsection)
 
 ## Flagged ambiguities
 

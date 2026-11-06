@@ -776,10 +776,14 @@ for t in web-app mobile-app desktop-app client-sdk backend-service automation; d
 done
 ! grep -qE '^## ([0-9]+ )?(治理顺序|导读顺序)$' "$ZH/doc-design/repo-types/guideline.md" || WT_OK=0
 grep -qF '未规定顺序时，按文档引用依赖安排' "$WT" || WT_OK=0
+grep -qF '读取对应的文档组与文档设计，按需读取相关 pattern' "$WT" || WT_OK=0
+grep -qF '向开发者说明当前表达方式是否适合该内容，不默认沿用已有代码、表格或图' "$WT" || WT_OK=0
+grep -qF '不顺着原有表达局部修补' "$WT" || WT_OK=0
+grep -qF '表达方式选择与适配性、行文公理、对应文档设计与术语一致性' "$WT" || WT_OK=0
 if [ "$WT_OK" -eq 1 ]; then
-  echo "ok - walkthrough: optional walkthrough phase, unit-by-unit confirmation, walkthrough order for each repo type(#458)"; PASS=$((PASS+1))
+  echo "ok - walkthrough: optional walkthrough phase, unit-by-unit confirmation, expression check first, walkthrough order for each repo type(#458/#526)"; PASS=$((PASS+1))
 else
-  echo "FAIL - walkthrough: skill / routing / walkthrough order missing or drifted(#458)"; FAIL=$((FAIL+1))
+  echo "FAIL - walkthrough: skill / routing / expression check / walkthrough order missing or drifted(#458/#526)"; FAIL=$((FAIL+1))
 fi
 
 # ════════════════ Pattern fallback: select by applicability when the doc design specifies none ════════════════
@@ -1057,6 +1061,28 @@ if [ "$ACA_TEST_OK" -eq 1 ]; then
   echo "ok - aca-test: independent test skill, blast-radius scoping, implement/review separation and bold step headers (#515)"; PASS=$((PASS+1))
 else
   echo "FAIL - aca-test: skill, routing, implement/review separation or release tiered verification missing (#515)"; FAIL=$((FAIL+1))
+fi
+
+# ════════════════ aca-review single task per dimension, structure-only scope, model reuse ════════════════
+
+REVIEW_TMPL="$ZH/skills/aca-review/SKILL.md.tmpl"
+if grep -qF '设计审查作为一个整体审查任务，围绕以下四项核对受审设计文档' "$REVIEW_TMPL" \
+  && grep -qF '实现审查作为一个整体审查任务，以已确认的设计文档为依据，只检查代码的模块化与整体结构，不检查具体的代码细节与实现逻辑' "$REVIEW_TMPL" \
+  && grep -qF '实现审查只检查整体结构（模块结构、整体代码分布、函数构造），不检查具体的代码细节与实现逻辑' "$REVIEW_TMPL" \
+  && grep -qF '仅执行设计审查或仅执行实现审查时，创建 1 个独立子 agent 任务完成该维度的全部核对项' "$REVIEW_TMPL" \
+  && grep -qF '默认直接复用上次确认的 Agent 环境与模型，跳过环境扫描与确认' "$REVIEW_TMPL" \
+  && grep -qF '首次执行审查且未指定模型时，扫描当前及本机已有的其他 AI Agent 环境与可调用模型' "$REVIEW_TMPL" \
+  && grep -qF '通过项与不适用项不逐条输出留痕明细' "$REVIEW_TMPL" \
+  && grep -qF '仅限模块内部且未改变模块整体代码结构（如模块内部逻辑、局部函数实现或测试细节改动）：不用执行实现审查，直接衔接 `/aca-test`' "$ZH/skills/aca-implement/SKILL.md.tmpl" \
+  && grep -qF '不涉及跨模块范围（仅单模块内部或局部设计改动）：不用执行设计审查，直接进入后续流程' "$ZH/skills/aca-design/SKILL.md.tmpl" \
+  && grep -qF '| 结构变更 |' "$ZH/skills/aca-implement/SKILL.md.tmpl" \
+  && ! grep -qF '设计审查为每个视角分别分配独立子 agent' "$REVIEW_TMPL" \
+  && ! grep -qF '## 检查范围' "$REVIEW_TMPL"; then
+  echo "ok - aca-review: single task per dimension, structure-only implementation review, model reuse, and Implement->Review->Test flow"
+  PASS=$((PASS+1))
+else
+  echo "FAIL - aca-review: dimension consolidation, structure-only boundary, model reuse, or flow missing"
+  FAIL=$((FAIL+1))
 fi
 
 # ════════════════ Summary ════════════════

@@ -59,10 +59,12 @@ flowchart TD
    - Do not modify design docs, production code, test code, or commit history during verification
 3. **Recheck failures and distinguish causes**
    - All pass: record the executed commands, number of passing test cases, and elapsed time
-   - Failures occur: check the failure logs and diagnostics
+   - Failures occur: against the confirmed design, check the failure logs, test cases, fixtures, and implementation
    - Suspected timeout caused by high host load or resource contention: rerun the failed items individually under low-concurrency isolated conditions to verify
    - Individual rerun passes consistently and is confirmed to be caused by environment load: record the initial anomaly, rerun command, and passing result
-   - Failure confirmed to be caused by code or test implementation issues: record the failing test cases, error diagnostics, and corresponding locations
+   - The implementation deviates from the design: report an implementation issue, and identify the failing test cases and the corresponding implementation locations
+   - Test expectations are outdated or the tests or fixtures are wrong: report a test issue, and identify the corresponding design basis and error locations
+   - The design is missing or contracts conflict: mark the corresponding verification as incomplete, and hand it to `/aca-specify` or `/aca-design`
    - Environment failure or diagnostics cannot be verified: mark the corresponding verification as incomplete and record the reason
 
 ## 5 Output and Next Step
@@ -73,7 +75,7 @@ flowchart TD
 | --- | --- |
 | Pass | All tests and required checks in the selected scope pass (including reused results or timeout rechecks), with no failing or incomplete items |
 | Fail | Confirmed code or test failures exist |
-| Incomplete | Environment is missing, execution is impossible, or diagnostics cannot be verified, and no confirmed failures exist |
+| Incomplete | The design is missing, contracts conflict, the environment is missing, execution is impossible, or diagnostics cannot be verified, and no confirmed failures exist |
 
 When both confirmed failures and incomplete items exist, the verdict is fail, and the incomplete items must be listed
 
@@ -104,7 +106,7 @@ Select the next step based on the test verdict and progress in the current round
 | Verdict | Situation | Next step |
 | --- | --- | --- |
 | Incomplete | Test environment, fixtures, or external dependencies are missing | Supply the environment conditions and verify again through `/aca-test` |
-| Fail | Code or test implementation issues | Fix through `/aca-implement`, review through `/aca-review`, then run `/aca-test` |
-| Fail | Missing design or contract conflict | Revise the design through `/aca-specify` or `/aca-design` |
+| Fail | Code or test implementation issues | Fix through `/aca-implement` (verify again directly through `/aca-test` when the code structure is unchanged, or review through `/aca-review` before running `/aca-test` when the code structure changes) |
+| Incomplete | Missing design or contract conflict | Revise the design through `/aca-specify` or `/aca-design` |
 | Pass | Subsequent implementation tasks remain in this round | Continue implementing the next scope through `/aca-implement` |
 | Pass | All implementation scopes in this round have passed verification | Proceed to `/aca-release` according to the version progression plan or conclude the current task |

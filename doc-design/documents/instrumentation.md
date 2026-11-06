@@ -7,6 +7,7 @@ Define business records from instrumentation, structured logs, and third-party c
 
 ## 2 Structure
 
+The party responsible for recording business data maintains this file
 The body contains the following three chapters
 
 | Chapter | Content requirements |
@@ -19,7 +20,7 @@ The body contains the following three chapters
 
 Specify whether data is recorded through an instrumentation SDK, logs, or other methods, who produces the records, and how and where they are delivered
 When implementation depends on the integrating party, state its responsibilities and reference them in the integration guide
-When multiple platforms share a design, describe each platform's recording responsibilities separately and connect them through references
+When multiple platforms share a design, the party that actually records the data defines the events and parameters, and other platforms reference those definitions
 
 ### 2.2 Event Summary
 
@@ -43,7 +44,7 @@ Use different key names when consistency cannot be maintained
 
 ## 3 Writing Steps
 
-1. Specify recording methods, data destinations, and each party's responsibilities, and reference existing designs for infrastructure or third-party capabilities
+1. Determine the party that actually records the data, specify recording methods, data destinations, and each party's responsibilities, and reference existing designs for infrastructure or third-party capabilities
 2. Summarize events, and assign each event a unique event name, meaning, and recording trigger
 3. Write details for each event, starting with the parameter table and then expanding the required data structures
 4. Check keys with the same name under the same parent across events, align their types and data format constraints, and rename keys when conflicts occur

@@ -32,6 +32,11 @@
 
 - [RFC 9110（HTTP 语义）](https://www.rfc-editor.org/rfc/rfc9110)：定义 HTTP 方法、状态码、字段及安全性与幂等性等语义
 - [OWASP API Security Top 10](https://owasp.org/API-Security/)：归纳 API 常见安全风险，包括授权、认证、资源消耗与配置问题
+- [Socket.IO 事件类型](https://socket.io/docs/v4/typescript/)：定义客户端与服务端分方向的事件声明方式，类型声明与运行时校验分别承担职责
+- [Socket.IO 事件与确认](https://socket.io/docs/v4/emitting-events/)：定义双向事件、acknowledgement 与超时机制
+- [Socket.IO 连接选项](https://socket.io/docs/v4/client-options/)与[命名空间](https://socket.io/docs/v4/namespaces/)：定义连接 path、namespace 与客户端连接方式
+- [Socket.IO 连接认证](https://socket.io/docs/v4/middlewares/)：定义 auth 凭据的传递方式与连接拒绝反馈
+- [Socket.IO 交付保证](https://socket.io/docs/v4/delivery-guarantees/)：定义默认消息交付保证及应用自行补充交付保证的边界
 
 ## 7 平台与工具
 

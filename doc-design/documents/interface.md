@@ -18,9 +18,9 @@ A [chapter](../../CONTEXT.md#chapter) has either no [section](../../CONTEXT.md#s
 Structure outline:
 
 ```text
-## 1 Public Contracts           As needed · Data contract
+## 1 Public Contracts           As needed · Data contract and shared connection and authentication conventions
 ## 2 <business activity type>
-### 2.1 Shared Contracts        As needed · Data contract
+### 2.1 Shared Contracts        As needed · Data contract and shared connection and authentication conventions
 ### 2.2 <interface>          Module interface
 ### 2.3 <interface>          Module interface
 ## 3 <interface>             When the business has only one interface, the chapter itself is the interface · Module interface
@@ -30,20 +30,23 @@ Structure outline:
 - A [chapter](../../CONTEXT.md#chapter) for one type of business activity: one [section](../../CONTEXT.md#section) per interface
   - Shared contracts [section](../../CONTEXT.md#section): contracts shared within this type of business activity
 
+Express data structures and validation contracts according to [Data Contract](../patterns/schema.md)
+Shared connection and authentication conventions describe the protocol entry point and authentication method, and each interface references the relevant content
+
 ## 3 Writing Steps
 
 1. Understand and list all content before writing
    - Understand the business: which business activity each interface serves
-   - Understand the data structures: which data structures each interface uses
+   - Understand the contracts: which data structures and connection and authentication conventions each interface uses
 2. Determine the public contracts
-   - If data structures or validation contracts are shared by interfaces for different business activities: place them in the first [chapter](../../CONTEXT.md#chapter) and use the data contract pattern
+   - If data structures, validation contracts, or connection and authentication conventions are shared by interfaces for different business activities: place them in the first [chapter](../../CONTEXT.md#chapter)
    - Otherwise: skip
 3. Divide the content into [chapter](../../CONTEXT.md#chapter) and [section](../../CONTEXT.md#section) entries
    - Group interfaces into several [chapter](../../CONTEXT.md#chapter) entries by business activity, using business language for names, not protocol verbs, paths, or method names
    - A [chapter](../../CONTEXT.md#chapter) containing only one interface is that interface, with no [section](../../CONTEXT.md#section)
-   - If a [chapter](../../CONTEXT.md#chapter) containing multiple interfaces has data structures or validation contracts shared by multiple interfaces: place them in its first [section](../../CONTEXT.md#section) and use the data contract pattern
+   - If a [chapter](../../CONTEXT.md#chapter) containing multiple interfaces has shared contracts: place them in its first [section](../../CONTEXT.md#section)
    - In a [chapter](../../CONTEXT.md#chapter) containing multiple interfaces, use one [section](../../CONTEXT.md#section) per interface, with names in business language
-4. Write each interface: use the module interface pattern, add no explanatory notes, and do not list callers
+4. Write each interface: choose the expression for its language or protocol according to [Module Interface](../patterns/interface.md), reference the shared contracts, and do not list callers
 
 ## 4 Example
 
@@ -54,6 +57,7 @@ A project-level interface with a public contracts [chapter](../../CONTEXT.md#cha
 | `## 1 Public Contracts` | Heading only |
 | `### 1.1 Error Bodies and Error Codes` | [Data contract](../patterns/schema.md) |
 | `### 1.2 Common Types` | [Data contract](../patterns/schema.md) |
+| `### 1.3 Connection and Authentication` | Shared protocol conventions, expressed as in the [connection and authentication example](../patterns/interface.md#51-connection-and-authentication) |
 | `## 2 Order Acceptance` | Heading only |
 | `### 2.1 Shared Order Types` | [Data contract](../patterns/schema.md) |
 | `### 2.2 Create Order` | [Module interface](../patterns/interface.md) |
@@ -79,6 +83,7 @@ A module-level interface with no public contracts, where the query order status 
 
 - [ ] There are only two levels, [chapter](../../CONTEXT.md#chapter) and [section](../../CONTEXT.md#section), and no [chapter](../../CONTEXT.md#chapter) has exactly one [section](../../CONTEXT.md#section)
 - [ ] [chapter](../../CONTEXT.md#chapter) names and [section](../../CONTEXT.md#section) names use business language, with no protocol verbs, paths, or method names
-- [ ] Contract types are placed according to their scope of use, the public contracts [chapter](../../CONTEXT.md#chapter) contains no types used by only one [chapter](../../CONTEXT.md#chapter), and shared contracts [section](../../CONTEXT.md#section) entries contain no types used by only one interface
+- [ ] Shared contracts are placed according to their scope of use, the public contracts [chapter](../../CONTEXT.md#chapter) contains no conventions used by only one [chapter](../../CONTEXT.md#chapter), and shared contracts [section](../../CONTEXT.md#section) entries contain no conventions used by only one interface
+- [ ] Shared connection and authentication conventions are locatable, and each interface is expressed in the language or protocol that callers use
 - [ ] No callers are listed
 - [ ] All interfaces called in architecture business scenarios are in this doc, and every interface listed in this doc is triggered by a business scenario

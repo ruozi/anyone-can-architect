@@ -52,6 +52,8 @@ Confirm design decisions unit by unit and correct identified issues on the spot 
 - Remove content that adds no information and does not help understanding
 - Write one sentence per line, with only one fact per sentence
 - State actions directly in operational steps
+- If a specific practice fully expresses a constraint, write the practice directly
+- Keep prohibitions that no specific practice can fully express
 - Write sequential actions as separate items
 - Make the actor, the object of the action, and the referents clear
 - Do not repeat actors, objects of actions, or referents already clear from context
@@ -98,7 +100,7 @@ flowchart TD
    If it still cannot be located, ask the developer to specify the doc location
    Read `~/.gemini/config/skills/aca/doc-design/repo-types/{repo-type}.md`
    Read `CONTEXT.md` and the design docs in the current scope
-   Read the corresponding document set, doc design, and patterns actually used
+   Read the corresponding document set and doc design, and read relevant patterns as needed
 4. Arrange the walkthrough order
    Follow the governance order in the repo-type spec
    Within a document set, follow the order specified by that document set
@@ -152,14 +154,15 @@ flowchart TD
 
 ### 4.2 Discuss and Cross-Check
 
-1. First explain the problems and requirements the current unit must address in business language
-   Then explain how the design meets these requirements
-   When business concepts are involved, link to the corresponding entries in the project's `CONTEXT.md`
-   Explain each concept's meaning and role in the current design
-2. Cross-check the design of the current unit
-   Cross-check each applicable checklist item in the document set, doc design, and patterns actually used
-   When walking through the overall doc structure, discuss chapter and section divisions, content placement, and presentation order against the corresponding Doc Design
-   Identify content that needs to be merged, split, or reordered
+1. **Walk through the current unit in business language**
+   - First explain the problems and requirements the current unit must address, then explain how the design meets these requirements
+   - Business concepts are involved: link to the corresponding entries in the project's `CONTEXT.md`, and explain each concept's meaning and role in the current design
+2. **Cross-check organization and expression**
+   - Walking through the overall doc structure: explain chapter and section divisions, content placement, and presentation order against the corresponding doc design, and propose content to merge, split, or reorder
+   - Walking through a Chapter or Section: against the expression requirements of the corresponding doc design and the applicable scenarios in `~/.gemini/config/skills/aca/doc-design/patterns/`, tell the developer whether the current form of expression fits the content, without keeping existing code, tables, or diagrams by default
+   - The current form of expression does not fit: first propose a replacement, split, or combined form of expression to the developer and read the selected pattern, without patching the original expression locally
+3. **Cross-check each checklist item**
+   - Cross-check each checklist item in the document set, doc design, and selected patterns that applies to the current unit
 
    | Check item | Focus |
    | --- | --- |
@@ -167,14 +170,14 @@ flowchart TD
    | Completeness | Omissions in responsibilities, behavior, boundaries, and exception handling |
    | Ambiguity and implementation uniqueness | Multiple reasonable interpretations, implementations that match the description but behave differently, and unresolved design decisions |
    | Redundancy | Duplicate maintenance and content that adds no information |
-   | Expression | Writing axiom, corresponding doc design, and terminology consistency |
+   | Expression | Choice and fit of the form of expression, writing axiom, corresponding doc design, and terminology consistency |
 
 ### 4.3 Confirm, Revise, and Check
 
-1. Ask the developer to confirm the current unit's design decisions
+1. Ask the developer to confirm the current unit's design decisions and changes to the form of expression
    If the developer does not understand or disagrees, clarify the meaning and rationale
    If not yet confirmed, continue discussing the current unit according to [Discuss and Cross-Check](#42-discuss-and-cross-check)
-2. When changes are confirmed, revise on the spot according to the corresponding doc design
+2. When changes are confirmed, revise on the spot according to the corresponding doc design and selected patterns
    When chapters or sections change, also update affected references and related designs
 3. After revision, rerun affected checklist items and mechanical checks
    Report the corrections and check results
@@ -243,4 +246,5 @@ Choose one immediately executable action based on completion status and progress
 | --- | --- | --- |
 | Incomplete | Units still await a walkthrough or verification conditions are missing | Meet the conditions, then continue this walkthrough through `/aca-walkthrough` |
 | Incomplete | The design solution cannot be determined this round | Use `/aca-specify` to reason through the solution |
-| Complete | The walkthrough of the current scope is complete | Review the design through `/aca-review` according to the confirmed arrangements |
+| Complete | The walkthrough of the current scope is complete, and the design in this round is cross-module | Review the design through `/aca-review` |
+| Complete | The walkthrough of the current scope is complete, and the design in this round is not cross-module | Go directly to the next step (`/aca-implement` when code is needed, `/aca-release` when only design docs change) |
